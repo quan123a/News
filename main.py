@@ -1498,15 +1498,28 @@ class GroupPage(QWidget):
                     }
                 """
                 )
+
+                selected_image = {"path": ""}
+                image_row = QHBoxLayout()
+                image_btn = QPushButton("🖼 Tải ảnh")
+                image_btn.setStyleSheet(self.primary_btn_style)
+                image_label = QLabel("Chưa chọn ảnh")
+                image_label.setStyleSheet("color: #e2e8f0;")
+                image_label.setWordWrap(True)
+                image_btn.clicked.connect(
+                    lambda _, holder=selected_image, l=image_label: self.handle_pick_group_post_image(holder, l)
+                )
+                image_row.addWidget(image_btn)
+                image_row.addWidget(image_label, 1)
+
                 btn_post = QPushButton("📝 Đăng vào group")
                 btn_post.setStyleSheet(self.green_btn_style)
                 btn_post.clicked.connect(
-                    lambda _, gid=group.get(
-                        "id"
-                    ), t=post_title, c=post_content: self.handle_group_post(gid, t, c)
+                    lambda _, gid=group.get("id"), t=post_title, c=post_content, holder=selected_image, l=image_label: self.handle_group_post(gid, t, c, holder, l)
                 )
                 post_layout.addWidget(post_title)
                 post_layout.addWidget(post_content)
+                post_layout.addLayout(image_row)
                 post_layout.addWidget(btn_post)
                 card_layout.addWidget(post_box)
 
@@ -1677,14 +1690,34 @@ class GroupPage(QWidget):
         if ok:
             self.render_ui()
 
-    def handle_group_post(self, group_id, title_input, content_input):
+    def handle_pick_group_post_image(self, image_holder, image_label):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Chọn ảnh cho bài viết group",
+            "",
+            "Image Files (*.png *.jpg *.jpeg *.bmp)",
+        )
+        if not path:
+            return
+
+        image_holder["path"] = path
+        image_label.setText(os.path.basename(path))
+
+    def handle_group_post(
+        self, group_id, title_input, content_input, image_holder=None, image_label=None
+    ):
         title = title_input.text().strip()
         content = content_input.toPlainText().strip()
-        ok, msg = self.create_group_post_callback(group_id, title, content)
+        image_path = image_holder.get("path", "") if image_holder else ""
+        ok, msg = self.create_group_post_callback(group_id, title, content, image_path)
         self.show_message(msg, "success" if ok else "error")
         if ok:
             title_input.clear()
             content_input.clear()
+            if image_holder is not None:
+                image_holder["path"] = ""
+            if image_label is not None:
+                image_label.setText("Chưa chọn ảnh")
             self.render_ui()
 
     def handle_delete_group_post(self, group_id, post_id):
@@ -3198,7 +3231,7 @@ class MainWindow(QWidget):
         save_groups(groups)
         return True, "Bạn đã rời group."
 
-    def create_group_post(self, group_id, title, content):
+    def create_group_post(self, group_id, title, content, image_path=""):
         current_user = self.get_current_user()
         group = self.get_group_by_id(group_id)
         if not current_user:
@@ -3214,7 +3247,7 @@ class MainWindow(QWidget):
             "id": generate_post_id(),
             "title": title,
             "content": content,
-            "image": "",
+            "image": image_path if image_path and os.path.exists(image_path) else "",
             "date": now_text(),
             "author": current_user,
             "likes": [],
