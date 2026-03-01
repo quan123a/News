@@ -878,25 +878,82 @@ class DetailPage(QWidget):
 
         self.like_btn = QPushButton("👍 Thích")
         self.like_btn.setFixedHeight(44)
+        self.like_btn.setCursor(Qt.PointingHandCursor)
+        self.like_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: rgba(255,255,255,0.94);
+                color: #1e2a56;
+                border-radius: 22px;
+                font-size: 14px;
+                font-weight: bold;
+                border: 2px solid rgba(30, 42, 86, 0.18);
+                padding: 0 16px;
+            }
+            QPushButton:hover {
+                background-color: #dbe4ff;
+                border: 2px solid #4e73df;
+            }
+            QPushButton:pressed {
+                background-color: #b8c6ff;
+            }
+        """
+        )
         self.like_btn.clicked.connect(self.toggle_like)
 
         self.comment_input = QLineEdit()
         self.comment_input.setPlaceholderText("Viết bình luận...")
-        self.comment_input.setFixedHeight(42)
+        self.comment_input.setFixedHeight(44)
+        self.comment_input.setStyleSheet(
+            """
+            QLineEdit {
+                background-color: rgba(255,255,255,0.95);
+                border-radius: 22px;
+                padding: 0 14px;
+                border: 1px solid rgba(0,0,0,0.10);
+                color: #1f2937;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border: 2px solid #4e73df;
+            }
+        """
+        )
 
         comment_btn = QPushButton("💬 Gửi bình luận")
-        comment_btn.setFixedHeight(42)
+        comment_btn.setFixedHeight(44)
+        comment_btn.setCursor(Qt.PointingHandCursor)
+        comment_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: rgba(255,255,255,0.94);
+                color: #1e2a56;
+                border-radius: 22px;
+                font-size: 14px;
+                font-weight: bold;
+                border: 2px solid rgba(30, 42, 86, 0.18);
+                padding: 0 16px;
+            }
+            QPushButton:hover {
+                background-color: #dbe4ff;
+                border: 2px solid #4e73df;
+            }
+            QPushButton:pressed {
+                background-color: #b8c6ff;
+            }
+        """
+        )
         comment_btn.clicked.connect(self.add_comment)
 
         self.comment_scroll = QScrollArea()
         self.comment_scroll.setWidgetResizable(True)
-        self.comment_scroll.setMinimumHeight(170)
+        self.comment_scroll.setMinimumHeight(200)
         self.comment_scroll.setStyleSheet(
             """
             QScrollArea {
-                background-color: rgba(0,0,0,0.35);
-                border-radius: 12px;
-                border: 1px solid rgba(255,255,255,0.25);
+                background-color: rgba(8, 15, 35, 0.42);
+                border-radius: 14px;
+                border: 1px solid rgba(255,255,255,0.28);
             }
         """
         )
@@ -945,15 +1002,15 @@ class DetailPage(QWidget):
             row_frame.setStyleSheet(
                 """
                 QFrame {
-                    background-color: rgba(255,255,255,0.09);
-                    border-radius: 10px;
-                    border: 1px solid rgba(255,255,255,0.2);
+                    background-color: rgba(255,255,255,0.12);
+                    border-radius: 12px;
+                    border: 1px solid rgba(255,255,255,0.30);
                 }
             """
             )
             row_layout = QHBoxLayout(row_frame)
-            row_layout.setContentsMargins(8, 6, 8, 6)
-            row_layout.setSpacing(8)
+            row_layout.setContentsMargins(10, 8, 10, 8)
+            row_layout.setSpacing(10)
 
             user = c.get("user", "Ẩn danh")
             avatar = build_avatar_label(self.get_user_avatar_callback(user), 30)
@@ -962,7 +1019,7 @@ class DetailPage(QWidget):
 
             label = QLabel(f"<b>{user}</b> ({cdate})<br>{text}")
             label.setWordWrap(True)
-            label.setStyleSheet("color: white;")
+            label.setStyleSheet("color: white; line-height: 1.35;")
 
             row_layout.addWidget(avatar)
             row_layout.addWidget(label, 1)
@@ -2906,14 +2963,50 @@ class MainWindow(QWidget):
                     time_line += f" ({relative})"
                 label = QLabel(f"{text}\n{time_line}")
                 label.setWordWrap(True)
-                label.setStyleSheet("color: white;")
+                label.setStyleSheet("color: white; line-height: 1.35;")
 
                 open_btn = QPushButton("Mở")
-                open_btn.setFixedWidth(70)
+                open_btn.setFixedHeight(34)
+                open_btn.setMinimumWidth(92)
+                open_btn.setCursor(Qt.PointingHandCursor)
+                open_btn.setStyleSheet(
+                    """
+                    QPushButton {
+                        background-color: rgba(255,255,255,0.94);
+                        color: #1e2a56;
+                        border-radius: 17px;
+                        font-weight: bold;
+                        border: 1px solid rgba(255,255,255,0.45);
+                        padding: 0 14px;
+                    }
+                    QPushButton:hover {
+                        background-color: #dbe4ff;
+                    }
+                    QPushButton:pressed {
+                        background-color: #b8c6ff;
+                    }
+                """
+                )
                 open_btn.clicked.connect(lambda _, n=item: self.open_notification(n))
 
                 remove_btn = QPushButton("Xóa")
-                remove_btn.setFixedWidth(70)
+                remove_btn.setFixedHeight(34)
+                remove_btn.setMinimumWidth(92)
+                remove_btn.setCursor(Qt.PointingHandCursor)
+                remove_btn.setStyleSheet(
+                    """
+                    QPushButton {
+                        background-color: #e74a3b;
+                        color: white;
+                        border-radius: 17px;
+                        font-weight: bold;
+                        border: 1px solid rgba(255,255,255,0.35);
+                        padding: 0 14px;
+                    }
+                    QPushButton:hover { background-color: #d83b2e; }
+                    QPushButton:pressed { background-color: #bf3327; }
+                """
+                )
                 remove_btn.clicked.connect(
                     lambda _, n=item: self.delete_notification(n)
                 )
@@ -2954,6 +3047,7 @@ class MainWindow(QWidget):
     def open_notification(self, notification_item):
         if not self.current_user:
             return
+        self.notification_panel.setVisible(False)
         notification_item["read"] = True
         save_notifications(notifications)
         self.update_notification_badge()
