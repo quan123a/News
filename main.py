@@ -3510,6 +3510,9 @@ class MainWindow(QWidget):
         self.content_area.addWidget(self.profile_page)
 
     def clear_content(self):
+        if hasattr(self, "notification_panel") and self.notification_panel.isVisible():
+            self.notification_panel.setVisible(False)
+
         for i in reversed(range(self.content_area.count())):
             widget = self.content_area.itemAt(i).widget()
             if widget:
