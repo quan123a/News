@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel,
-    QPushButton, QScrollArea, QFrame, QHBoxLayout,
+    QPushButton, QScrollArea, QFrame, QHBoxLayout, QGridLayout,
     QTextEdit, QLineEdit, QFileDialog, QMessageBox,
     QDialog, QDialogButtonBox, QComboBox
 )
@@ -1683,13 +1683,37 @@ class AuthGatePage(QWidget):
         intro_layout = QVBoxLayout(intro)
         intro_layout.setContentsMargins(24, 24, 24, 24)
 
-        intro_title = QLabel("NovaNews Desktop")
-        intro_title.setStyleSheet("color: white; font-size: 34px; font-weight: 900;")
-        intro_text = QLabel("Đăng nhập để mở toàn bộ tính năng quản lý bài viết, nhóm và thông báo.")
-        intro_text.setWordWrap(True)
-        intro_text.setStyleSheet("color: #e2e8f0; font-size: 14px;")
-        intro_layout.addWidget(intro_title)
-        intro_layout.addWidget(intro_text)
+        image_grid = QGridLayout()
+        image_grid.setSpacing(12)
+
+        image_names = ["anh1.jpg", "anh2.jpg", "anh3.jpg", "anh4.jpg"]
+        for idx, image_name in enumerate(image_names):
+            image_label = QLabel()
+            image_label.setFixedSize(250, 150)
+            image_label.setAlignment(Qt.AlignCenter)
+
+            pixmap = QPixmap(image_name)
+            if not pixmap.isNull():
+                scaled = pixmap.scaled(
+                    image_label.width(),
+                    image_label.height(),
+                    Qt.KeepAspectRatioByExpanding,
+                    Qt.SmoothTransformation,
+                )
+                image_label.setPixmap(scaled)
+                image_label.setStyleSheet("border-radius: 10px; border: 1px solid rgba(255,255,255,0.35);")
+            else:
+                image_label.setText(f"Không tìm thấy\n{image_name}")
+                image_label.setStyleSheet(
+                    "color: #e2e8f0; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.55);"
+                    "background-color: rgba(255,255,255,0.08); font-size: 12px;"
+                )
+
+            row = idx // 2
+            col = idx % 2
+            image_grid.addWidget(image_label, row, col)
+
+        intro_layout.addLayout(image_grid)
         intro_layout.addStretch()
 
         form = QFrame()
