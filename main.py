@@ -613,194 +613,164 @@ class HomePage(QWidget):
         self.show_groups_callback = show_groups_callback
         self.show_message = show_message_callback
         self.toggle_notifications_callback = toggle_notifications_callback
-        self.active_category = "All"
+        self.active_category = "Tất cả"
 
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 8, 0, 8)
+        root_layout.setContentsMargins(24, 12, 24, 18)
+        root_layout.setSpacing(12)
 
-        phone_shell = QFrame()
-        phone_shell.setMaximumWidth(440)
-        phone_shell.setStyleSheet("""
+        header_card = QFrame()
+        header_card.setStyleSheet("""
             QFrame {
-                background-color: white;
-                border-radius: 26px;
-                border: 1px solid rgba(255,255,255,0.30);
+                background-color: rgba(255,255,255,0.95);
+                border-radius: 16px;
+                border: 1px solid rgba(15,23,42,0.08);
             }
         """)
-        shell_layout = QVBoxLayout(phone_shell)
-        shell_layout.setContentsMargins(18, 16, 18, 12)
-        shell_layout.setSpacing(10)
-
-        status_row = QHBoxLayout()
-        time_label = QLabel("9:41")
-        time_label.setStyleSheet("color: #0f172a; font-size: 14px; font-weight: bold;")
-        status_row.addWidget(time_label)
-        status_row.addStretch()
-        signal = QLabel("📶  🔋")
-        signal.setStyleSheet("color: #334155; font-size: 12px;")
-        status_row.addWidget(signal)
+        header_layout = QVBoxLayout(header_card)
+        header_layout.setContentsMargins(18, 16, 18, 16)
+        header_layout.setSpacing(10)
 
         top_row = QHBoxLayout()
-        top_row.setSpacing(8)
+        brand = QLabel("📰 NovaNews Desktop")
+        brand.setStyleSheet("color: #0f172a; font-size: 24px; font-weight: 900;")
 
-        self.btn_search = QPushButton("🔍")
-        self.btn_search.setFixedSize(34, 34)
-        self.btn_search.setStyleSheet("border: none; font-size: 18px;")
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Tìm tin theo tiêu đề hoặc nội dung...")
+        self.search_input.setFixedHeight(40)
+        self.search_input.setMinimumWidth(360)
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #dbe3f0;
+                border-radius: 20px;
+                padding: 0 14px;
+                font-size: 14px;
+                background-color: #f8fafc;
+                color: #0f172a;
+            }
+            QLineEdit:focus {
+                border: 2px solid #4f46e5;
+                background-color: white;
+            }
+        """)
+        self.search_input.textChanged.connect(self.filter_posts)
 
-        logo = QLabel("yahoo/news")
-        logo.setStyleSheet("color: #4f46e5; font-size: 30px; font-weight: 900;")
+        self.btn_bell = QPushButton("🔔 Thông báo")
+        self.btn_bell.setFixedHeight(40)
+        self.btn_bell.setStyleSheet("""
+            QPushButton {
+                background-color: #eef2ff;
+                color: #312e81;
+                border: 1px solid #c7d2fe;
+                border-radius: 20px;
+                padding: 0 14px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #e0e7ff;
+            }
+        """)
+        self.btn_bell.clicked.connect(self.toggle_notifications_callback)
 
-        self.btn_bell = QPushButton("🔔")
-        self.btn_bell.setFixedSize(34, 34)
-        self.btn_bell.setStyleSheet("border: none; font-size: 18px;")
-
-        top_row.addWidget(self.btn_search)
+        top_row.addWidget(brand)
         top_row.addStretch()
-        top_row.addWidget(logo)
-        top_row.addStretch()
+        top_row.addWidget(self.search_input)
         top_row.addWidget(self.btn_bell)
 
-        self.category_buttons = {}
         category_row = QHBoxLayout()
-        category_row.setSpacing(12)
-        for cat in ["World", "TV", "Movies", "Health", "Business", "More"]:
-            btn = QPushButton("..." if cat == "More" else cat)
+        category_row.setSpacing(8)
+        self.category_buttons = {}
+        for cat in ["Tất cả", "Thời sự", "Giải trí", "Sức khỏe", "Kinh doanh", "Nhóm"]:
+            btn = QPushButton(cat)
             btn.setCursor(Qt.PointingHandCursor)
-            btn.setStyleSheet("""
-                QPushButton {
-                    border: none;
-                    color: #64748b;
-                    font-size: 14px;
-                    font-weight: bold;
-                    padding-bottom: 4px;
-                }
-                QPushButton:hover {
-                    color: #0f172a;
-                }
-            """)
+            btn.setFixedHeight(34)
             btn.clicked.connect(lambda _, value=cat: self.select_category(value))
             category_row.addWidget(btn)
             self.category_buttons[cat] = btn
         category_row.addStretch()
 
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Tìm tin tức...")
-        self.search_input.setFixedHeight(36)
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #e2e8f0;
-                border-radius: 18px;
-                padding: 0 12px;
-                font-size: 13px;
-                background-color: #f8fafc;
-            }
-        """)
-        self.search_input.textChanged.connect(self.filter_posts)
+        self.btn_new_post = QPushButton("✍️ Tạo bài mới")
+        self.btn_new_post.setFixedHeight(34)
+        self.btn_new_post.clicked.connect(self.show_create_callback)
+        category_row.addWidget(self.btn_new_post)
+
+        self.btn_profile = QPushButton("👤 Hồ sơ")
+        self.btn_profile.setFixedHeight(34)
+        self.btn_profile.clicked.connect(self.show_profile_callback)
+        category_row.addWidget(self.btn_profile)
+
+        header_layout.addLayout(top_row)
+        header_layout.addLayout(category_row)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("border: none; background: transparent;")
+        self.scroll.setStyleSheet("border: none;")
 
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
-        self.container_layout.setContentsMargins(0, 0, 0, 0)
+        self.container_layout.setContentsMargins(0, 4, 0, 4)
         self.container_layout.setSpacing(10)
         self.scroll.setWidget(self.container)
 
-        bottom_nav = QFrame()
-        bottom_nav.setStyleSheet("border-top: 1px solid #e2e8f0;")
-        bottom_layout = QHBoxLayout(bottom_nav)
-        bottom_layout.setContentsMargins(0, 10, 0, 0)
-        bottom_layout.setSpacing(10)
+        root_layout.addWidget(header_card)
+        root_layout.addWidget(self.scroll)
 
-        self.btn_tab_home = QPushButton("🏠\nHome")
-        self.btn_tab_top = QPushButton("🌐\nTop stories")
-        self.btn_tab_profile = QPushButton("👤\nProfile")
-
-        for btn in [self.btn_tab_home, self.btn_tab_top, self.btn_tab_profile]:
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setFixedHeight(54)
-            btn.setStyleSheet("""
-                QPushButton {
-                    border: none;
-                    color: #475569;
-                    font-size: 12px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    color: #0f172a;
-                }
-            """)
-            bottom_layout.addWidget(btn)
-
-        shell_layout.addLayout(status_row)
-        shell_layout.addLayout(top_row)
-        shell_layout.addLayout(category_row)
-        shell_layout.addWidget(self.search_input)
-        shell_layout.addWidget(self.scroll)
-        shell_layout.addWidget(bottom_nav)
-
-        row = QHBoxLayout()
-        row.addStretch()
-        row.addWidget(phone_shell)
-        row.addStretch()
-        root_layout.addLayout(row)
-
-        self.btn_search.clicked.connect(self.focus_search)
-        self.btn_bell.clicked.connect(self.toggle_notifications_callback)
-        self.btn_tab_home.clicked.connect(self.reset_home_feed)
-        self.btn_tab_top.clicked.connect(self.show_create_callback)
-        self.btn_tab_profile.clicked.connect(self.show_profile_callback)
-
-        self.select_category("World")
-
-    def focus_search(self):
-        self.search_input.setFocus()
-
-    def reset_home_feed(self):
-        self.active_category = "All"
-        self.search_input.clear()
         self.highlight_category_button()
         self.render_posts()
 
     def select_category(self, category):
         self.active_category = category
         self.highlight_category_button()
-
-        if category == "More":
+        if category == "Nhóm":
             self.show_groups_callback()
             return
 
-        if category == "World":
-            self.search_input.clear()
-        elif category == "TV":
-            self.search_input.setText("video")
-        elif category == "Movies":
-            self.search_input.setText("phim")
-        elif category == "Health":
-            self.search_input.setText("sức khỏe")
-        elif category == "Business":
-            self.search_input.setText("kinh tế")
-        else:
-            self.render_posts(self.search_input.text())
+        mapping = {
+            "Tất cả": "",
+            "Thời sự": "tin",
+            "Giải trí": "giải trí",
+            "Sức khỏe": "sức khỏe",
+            "Kinh doanh": "kinh tế",
+        }
+        self.search_input.setText(mapping.get(category, ""))
 
     def highlight_category_button(self):
         for cat, btn in self.category_buttons.items():
-            active = (cat == self.active_category)
-            color = "#0f172a" if active else "#64748b"
-            border = "2px solid #4f46e5" if active else "none"
+            active = cat == self.active_category
+            bg = "#4f46e5" if active else "#f1f5f9"
+            fg = "white" if active else "#334155"
+            bd = "#4f46e5" if active else "#dbe3f0"
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    border: none;
-                    border-bottom: {border};
-                    color: {color};
-                    font-size: 14px;
+                    background-color: {bg};
+                    color: {fg};
+                    border: 1px solid {bd};
+                    border-radius: 17px;
+                    padding: 0 14px;
+                    font-size: 13px;
                     font-weight: bold;
-                    padding-bottom: 4px;
                 }}
                 QPushButton:hover {{
-                    color: #0f172a;
+                    background-color: #6366f1;
+                    color: white;
                 }}
+            """)
+
+        for btn in [self.btn_new_post, self.btn_profile]:
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #0ea5e9;
+                    color: white;
+                    border: 1px solid #0284c7;
+                    border-radius: 17px;
+                    padding: 0 14px;
+                    font-size: 13px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #0284c7;
+                }
             """)
 
     def clear_posts(self):
@@ -812,7 +782,6 @@ class HomePage(QWidget):
 
     def render_posts(self, keyword=""):
         self.clear_posts()
-
         normalized_keyword = keyword.strip().lower()
         filtered_posts = []
 
@@ -820,7 +789,6 @@ class HomePage(QWidget):
             if not normalized_keyword:
                 filtered_posts.append(post)
                 continue
-
             title_match = normalized_keyword in post.get("title", "").lower()
             content_match = normalized_keyword in post.get("content", "").lower()
             if title_match or content_match:
@@ -839,7 +807,7 @@ class HomePage(QWidget):
         if not filtered_posts:
             empty_label = QLabel("Không tìm thấy bài viết phù hợp.")
             empty_label.setAlignment(Qt.AlignCenter)
-            empty_label.setStyleSheet("color: #64748b; font-size: 14px; padding: 20px;")
+            empty_label.setStyleSheet("color: #475569; font-size: 15px; padding: 26px;")
             self.container_layout.addWidget(empty_label)
 
         self.container_layout.addStretch()
@@ -2479,7 +2447,7 @@ class MainWindow(QWidget):
         self.current_user = None
 
         self.setWindowTitle("NovaNews Desktop")
-        self.resize(1200, 800)
+        self.resize(1440, 900)
 
         self.main_layout = QVBoxLayout(self)
 
@@ -2660,7 +2628,7 @@ class MainWindow(QWidget):
 
     def update_auth_state(self):
         logged_in = bool(self.current_user)
-        self.menu_bar.setVisible(False)
+        self.menu_bar.setVisible(logged_in)
         self.notification_panel.setVisible(False)
         self.notify_badge.setVisible(False)
         self.btn_notify.setVisible(False)
