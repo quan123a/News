@@ -526,88 +526,67 @@ groups = load_groups()
 
 
 class PostCard(QFrame):
-    def __init__(self, post, open_callback, get_followers_count_callback, get_user_avatar_callback):
+    def __init__(self, post, open_callback, get_followers_count_callback, get_user_avatar_callback, featured=False):
         super().__init__()
         self.post = post
         self.open_callback = open_callback
-
-        self.setStyleSheet("""
-            QFrame {
-                background-color: rgba(0,0,0,0.35);
-                border-radius: 20px;
-                padding: 20px;
-                margin: 15px;
-                border: 1px solid rgba(255,255,255,0.2);
-            }
-            QFrame:hover {
-                background-color: rgba(0,0,0,0.55);
-                border: 1px solid white;
-            }
-        """)
+        self.featured = featured
 
         self.setCursor(Qt.PointingHandCursor)
-
-        layout = QHBoxLayout(self)
-        layout.setSpacing(25)
-
-        image_label = QLabel()
-        pixmap = QPixmap(post["image"])
-        if not pixmap.isNull():
-            pixmap = pixmap.scaled(220, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            image_label.setPixmap(pixmap)
-
-        content_layout = QVBoxLayout()
-
-        title = QLabel(post["title"])
-        title.setFont(QFont("Arial", 16, QFont.Bold))
-        title.setStyleSheet("color: white;")
-        title.setWordWrap(True)
-
-        preview = QLabel(post["content"][:150] + "...")
-        preview.setStyleSheet("color: #f1f1f1; font-size: 13px;")
-        preview.setWordWrap(True)
-
-        meta_box = QFrame()
-        meta_box.setStyleSheet("""
+        self.setStyleSheet("""
             QFrame {
-                background-color: rgba(255,255,255,0.16);
-                border: 1px solid rgba(255,255,255,0.35);
-                border-radius: 12px;
-                padding: 10px 14px;
+                background-color: white;
+                border-radius: 14px;
+                border: 1px solid #e2e8f0;
+            }
+            QFrame:hover {
+                border: 1px solid #cbd5e1;
+                background-color: #f8fafc;
             }
         """)
-        meta_layout = QHBoxLayout(meta_box)
-        meta_layout.setContentsMargins(10, 6, 10, 6)
-        meta_layout.setSpacing(10)
 
-        date = QLabel("🗓 " + post["date"])
-        date.setStyleSheet("color: white; font-size: 12px; font-weight: bold;")
+        layout = QVBoxLayout(self) if featured else QHBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+
+        image_label = QLabel()
+        pixmap = QPixmap(post.get("image", ""))
+        if not pixmap.isNull():
+            if featured:
+                pixmap = pixmap.scaled(340, 185, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            else:
+                pixmap = pixmap.scaled(92, 72, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            image_label.setPixmap(pixmap)
+        image_label.setStyleSheet("border-radius: 10px;")
 
         author_name = post.get("author", "Ẩn danh")
         followers_count = get_followers_count_callback(author_name)
-        author_avatar = build_avatar_label(get_user_avatar_callback(author_name), 30)
-        author = QLabel(f"👤 {author_name} | 👥 {followers_count} follower")
-        author.setStyleSheet("color: white; font-size: 12px; font-weight: bold;")
+        source = QLabel(f"{author_name} · {relative_time_text(post.get('date', '')) or post.get('date', '')}")
+        source.setStyleSheet("color: #64748b; font-size: 12px;")
 
-        likes_count = QLabel(f"👍 {len(post.get('likes', []))}")
-        likes_count.setStyleSheet("color: #fff; font-size: 12px; font-weight: bold;")
+        title = QLabel(post.get("title", ""))
+        title.setWordWrap(True)
+        title.setStyleSheet("color: #0f172a; font-size: 15px; font-weight: bold;")
 
-        comments_count = QLabel(f"💬 {len(post.get('comments', []))}")
-        comments_count.setStyleSheet("color: #fff; font-size: 12px; font-weight: bold;")
+        reads = QLabel(f"{max(80, followers_count * 7)} reads")
+        reads.setStyleSheet("color: #94a3b8; font-size: 12px;")
 
-        meta_layout.addWidget(date)
-        meta_layout.addWidget(author_avatar)
-        meta_layout.addWidget(author)
-        meta_layout.addWidget(likes_count)
-        meta_layout.addWidget(comments_count)
-        meta_layout.addStretch()
+        if featured:
+            layout.addWidget(image_label)
+            layout.addWidget(source)
+            layout.addWidget(title)
+            layout.addWidget(reads)
+        else:
+            text_col = QVBoxLayout()
+            text_col.setSpacing(4)
+            text_col.addWidget(source)
+            text_col.addWidget(title)
+            text_col.addWidget(reads)
+            text_col.addStretch()
 
-        content_layout.addWidget(title)
-        content_layout.addWidget(preview)
-        content_layout.addWidget(meta_box)
-
-        layout.addWidget(image_label)
-        layout.addLayout(content_layout)
+            layout.addLayout(text_col, 1)
+            if not pixmap.isNull():
+                layout.addWidget(image_label)
 
     def mousePressEvent(self, event):
         self.open_callback(self.post)
@@ -620,44 +599,87 @@ class HomePage(QWidget):
         self.get_followers_count_callback = get_followers_count_callback
         self.get_user_avatar_callback = get_user_avatar_callback
 
-        layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 8, 0, 8)
 
-        title = QLabel("📰 Trang chủ - Danh sách bài viết")
-        title.setFont(QFont("Arial", 24, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: white; padding: 20px;")
+        phone_shell = QFrame()
+        phone_shell.setMaximumWidth(440)
+        phone_shell.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 26px;
+                border: 1px solid rgba(255,255,255,0.30);
+            }
+        """)
+        shell_layout = QVBoxLayout(phone_shell)
+        shell_layout.setContentsMargins(18, 16, 18, 16)
+        shell_layout.setSpacing(10)
+
+        status_row = QHBoxLayout()
+        status_row.addWidget(QLabel("9:41"))
+        status_row.addStretch()
+        signal = QLabel("📶  🔋")
+        signal.setStyleSheet("color: #334155; font-size: 12px;")
+        status_row.addWidget(signal)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(8)
+        search = QLabel("🔍")
+        search.setStyleSheet("font-size: 18px;")
+        logo = QLabel("yahoo/news")
+        logo.setStyleSheet("color: #4f46e5; font-size: 32px; font-weight: 900;")
+        bell = QLabel("🔔")
+        bell.setStyleSheet("font-size: 18px;")
+        top_row.addWidget(search)
+        top_row.addStretch()
+        top_row.addWidget(logo)
+        top_row.addStretch()
+        top_row.addWidget(bell)
+
+        category_row = QHBoxLayout()
+        for idx, cat in enumerate(["World", "TV", "Movies", "Health", "Business", "..."]):
+            c = QLabel(cat)
+            color = "#0f172a" if idx == 0 else "#64748b"
+            c.setStyleSheet(f"color: {color}; font-size: 15px; font-weight: bold;")
+            category_row.addWidget(c)
+        category_row.addStretch()
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔎 Tìm theo tiêu đề hoặc nội dung...")
-        self.search_input.setFixedHeight(42)
+        self.search_input.setPlaceholderText("Tìm tin tức...")
+        self.search_input.setFixedHeight(36)
         self.search_input.setStyleSheet("""
             QLineEdit {
-                background-color: rgba(255,255,255,0.95);
-                border-radius: 21px;
-                padding: 0 14px;
+                border: 1px solid #e2e8f0;
+                border-radius: 18px;
+                padding: 0 12px;
                 font-size: 13px;
-                border: 1px solid rgba(0,0,0,0.1);
-                margin: 0 20px 10px 20px;
-            }
-            QLineEdit:focus {
-                border: 2px solid #4e73df;
+                background-color: #f8fafc;
             }
         """)
         self.search_input.textChanged.connect(self.filter_posts)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("border: none;")
+        self.scroll.setStyleSheet("border: none; background: transparent;")
 
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
         self.container_layout.setContentsMargins(0, 0, 0, 0)
-
+        self.container_layout.setSpacing(10)
         self.scroll.setWidget(self.container)
 
-        layout.addWidget(title)
-        layout.addWidget(self.search_input)
-        layout.addWidget(self.scroll)
+        shell_layout.addLayout(status_row)
+        shell_layout.addLayout(top_row)
+        shell_layout.addLayout(category_row)
+        shell_layout.addWidget(self.search_input)
+        shell_layout.addWidget(self.scroll)
+
+        row = QHBoxLayout()
+        row.addStretch()
+        row.addWidget(phone_shell)
+        row.addStretch()
+
+        root_layout.addLayout(row)
 
         self.render_posts()
 
@@ -684,14 +706,20 @@ class HomePage(QWidget):
             if title_match or content_match:
                 filtered_posts.append(post)
 
-        for post in filtered_posts:
-            card = PostCard(post, self.open_detail_callback, self.get_followers_count_callback, self.get_user_avatar_callback)
+        for idx, post in enumerate(filtered_posts):
+            card = PostCard(
+                post,
+                self.open_detail_callback,
+                self.get_followers_count_callback,
+                self.get_user_avatar_callback,
+                featured=(idx == 0),
+            )
             self.container_layout.addWidget(card)
 
         if not filtered_posts:
             empty_label = QLabel("Không tìm thấy bài viết phù hợp.")
             empty_label.setAlignment(Qt.AlignCenter)
-            empty_label.setStyleSheet("color: #f1f1f1; font-size: 14px; padding: 20px;")
+            empty_label.setStyleSheet("color: #64748b; font-size: 14px; padding: 20px;")
             self.container_layout.addWidget(empty_label)
 
         self.container_layout.addStretch()
@@ -2353,26 +2381,27 @@ class MainWindow(QWidget):
         menu_layout.setSpacing(25)
         menu_layout.setAlignment(Qt.AlignCenter)
 
-        self.btn_home = QPushButton("Trang chủ")
-        self.btn_create = QPushButton("Tạo bài")
-        self.btn_profile = QPushButton("Hồ sơ")
-        self.btn_groups = QPushButton("Nhóm")
+        self.btn_home = QPushButton("🏠 Home")
+        self.btn_create = QPushButton("🌐 Top stories")
+        self.btn_profile = QPushButton("👤 Profile")
+        self.btn_groups = QPushButton("👥 Groups")
 
         for btn in [self.btn_home, self.btn_create, self.btn_profile, self.btn_groups]:
-            btn.setFixedSize(200, 55)
-            btn.setFont(QFont("Arial", 14, QFont.Bold))
+            btn.setFixedSize(165, 54)
+            btn.setFont(QFont("Arial", 12, QFont.Bold))
             btn.setStyleSheet("""
                 QPushButton {
-                    background-color: rgba(255,255,255,0.96);
-                    border-radius: 27px;
-                    border: 1px solid rgba(0,0,0,0.1);
-                    padding: 0 18px;
+                    background-color: rgba(255,255,255,0.98);
+                    color: #1e293b;
+                    border-radius: 24px;
+                    border: 1px solid #e2e8f0;
+                    padding: 0 14px;
                 }
                 QPushButton:hover {
-                    background-color: #dbe4ff;
+                    background-color: #f8fafc;
                 }
                 QPushButton:pressed {
-                    background-color: #b8c6ff;
+                    background-color: #eef2ff;
                 }
             """)
 
@@ -2511,7 +2540,9 @@ class MainWindow(QWidget):
         logged_in = bool(self.current_user)
         self.menu_bar.setVisible(logged_in)
         self.notification_panel.setVisible(False)
-        self.notify_badge.setVisible(logged_in)
+        self.notify_badge.setVisible(False)
+        self.btn_notify.setVisible(False)
+        self.app_title.setVisible(not logged_in)
 
         if logged_in:
             self.show_home()
