@@ -593,11 +593,25 @@ class PostCard(QFrame):
 
 
 class HomePage(QWidget):
-    def __init__(self, open_detail_callback, get_followers_count_callback, get_user_avatar_callback):
+    def __init__(
+        self,
+        open_detail_callback,
+        get_followers_count_callback,
+        get_user_avatar_callback,
+        show_profile_callback,
+        show_create_callback,
+        show_groups_callback,
+        show_message_callback,
+    ):
         super().__init__()
         self.open_detail_callback = open_detail_callback
         self.get_followers_count_callback = get_followers_count_callback
         self.get_user_avatar_callback = get_user_avatar_callback
+        self.show_profile_callback = show_profile_callback
+        self.show_create_callback = show_create_callback
+        self.show_groups_callback = show_groups_callback
+        self.show_message = show_message_callback
+        self.active_category = "All"
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 8, 0, 8)
@@ -612,11 +626,13 @@ class HomePage(QWidget):
             }
         """)
         shell_layout = QVBoxLayout(phone_shell)
-        shell_layout.setContentsMargins(18, 16, 18, 16)
+        shell_layout.setContentsMargins(18, 16, 18, 12)
         shell_layout.setSpacing(10)
 
         status_row = QHBoxLayout()
-        status_row.addWidget(QLabel("9:41"))
+        time_label = QLabel("9:41")
+        time_label.setStyleSheet("color: #0f172a; font-size: 14px; font-weight: bold;")
+        status_row.addWidget(time_label)
         status_row.addStretch()
         signal = QLabel("📶  🔋")
         signal.setStyleSheet("color: #334155; font-size: 12px;")
@@ -624,24 +640,45 @@ class HomePage(QWidget):
 
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
-        search = QLabel("🔍")
-        search.setStyleSheet("font-size: 18px;")
+
+        self.btn_search = QPushButton("🔍")
+        self.btn_search.setFixedSize(34, 34)
+        self.btn_search.setStyleSheet("border: none; font-size: 18px;")
+
         logo = QLabel("yahoo/news")
-        logo.setStyleSheet("color: #4f46e5; font-size: 32px; font-weight: 900;")
-        bell = QLabel("🔔")
-        bell.setStyleSheet("font-size: 18px;")
-        top_row.addWidget(search)
+        logo.setStyleSheet("color: #4f46e5; font-size: 30px; font-weight: 900;")
+
+        self.btn_bell = QPushButton("🔔")
+        self.btn_bell.setFixedSize(34, 34)
+        self.btn_bell.setStyleSheet("border: none; font-size: 18px;")
+
+        top_row.addWidget(self.btn_search)
         top_row.addStretch()
         top_row.addWidget(logo)
         top_row.addStretch()
-        top_row.addWidget(bell)
+        top_row.addWidget(self.btn_bell)
 
+        self.category_buttons = {}
         category_row = QHBoxLayout()
-        for idx, cat in enumerate(["World", "TV", "Movies", "Health", "Business", "..."]):
-            c = QLabel(cat)
-            color = "#0f172a" if idx == 0 else "#64748b"
-            c.setStyleSheet(f"color: {color}; font-size: 15px; font-weight: bold;")
-            category_row.addWidget(c)
+        category_row.setSpacing(12)
+        for cat in ["World", "TV", "Movies", "Health", "Business", "More"]:
+            btn = QPushButton("..." if cat == "More" else cat)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setStyleSheet("""
+                QPushButton {
+                    border: none;
+                    color: #64748b;
+                    font-size: 14px;
+                    font-weight: bold;
+                    padding-bottom: 4px;
+                }
+                QPushButton:hover {
+                    color: #0f172a;
+                }
+            """)
+            btn.clicked.connect(lambda _, value=cat: self.select_category(value))
+            category_row.addWidget(btn)
+            self.category_buttons[cat] = btn
         category_row.addStretch()
 
         self.search_input = QLineEdit()
@@ -668,20 +705,101 @@ class HomePage(QWidget):
         self.container_layout.setSpacing(10)
         self.scroll.setWidget(self.container)
 
+        bottom_nav = QFrame()
+        bottom_nav.setStyleSheet("border-top: 1px solid #e2e8f0;")
+        bottom_layout = QHBoxLayout(bottom_nav)
+        bottom_layout.setContentsMargins(0, 10, 0, 0)
+        bottom_layout.setSpacing(10)
+
+        self.btn_tab_home = QPushButton("🏠\nHome")
+        self.btn_tab_top = QPushButton("🌐\nTop stories")
+        self.btn_tab_profile = QPushButton("👤\nProfile")
+
+        for btn in [self.btn_tab_home, self.btn_tab_top, self.btn_tab_profile]:
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedHeight(54)
+            btn.setStyleSheet("""
+                QPushButton {
+                    border: none;
+                    color: #475569;
+                    font-size: 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    color: #0f172a;
+                }
+            """)
+            bottom_layout.addWidget(btn)
+
         shell_layout.addLayout(status_row)
         shell_layout.addLayout(top_row)
         shell_layout.addLayout(category_row)
         shell_layout.addWidget(self.search_input)
         shell_layout.addWidget(self.scroll)
+        shell_layout.addWidget(bottom_nav)
 
         row = QHBoxLayout()
         row.addStretch()
         row.addWidget(phone_shell)
         row.addStretch()
-
         root_layout.addLayout(row)
 
+        self.btn_search.clicked.connect(self.focus_search)
+        self.btn_bell.clicked.connect(lambda: self.show_message("Thông báo hiện có trong trang Hồ sơ/chi tiết bài viết.", "info"))
+        self.btn_tab_home.clicked.connect(self.reset_home_feed)
+        self.btn_tab_top.clicked.connect(self.show_create_callback)
+        self.btn_tab_profile.clicked.connect(self.show_profile_callback)
+
+        self.select_category("World")
+
+    def focus_search(self):
+        self.search_input.setFocus()
+
+    def reset_home_feed(self):
+        self.active_category = "All"
+        self.search_input.clear()
+        self.highlight_category_button()
         self.render_posts()
+
+    def select_category(self, category):
+        self.active_category = category
+        self.highlight_category_button()
+
+        if category == "More":
+            self.show_groups_callback()
+            return
+
+        if category == "World":
+            self.search_input.clear()
+        elif category == "TV":
+            self.search_input.setText("video")
+        elif category == "Movies":
+            self.search_input.setText("phim")
+        elif category == "Health":
+            self.search_input.setText("sức khỏe")
+        elif category == "Business":
+            self.search_input.setText("kinh tế")
+        else:
+            self.render_posts(self.search_input.text())
+
+    def highlight_category_button(self):
+        for cat, btn in self.category_buttons.items():
+            active = (cat == self.active_category)
+            color = "#0f172a" if active else "#64748b"
+            border = "2px solid #4f46e5" if active else "none"
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    border: none;
+                    border-bottom: {border};
+                    color: {color};
+                    font-size: 14px;
+                    font-weight: bold;
+                    padding-bottom: 4px;
+                }}
+                QPushButton:hover {{
+                    color: #0f172a;
+                }}
+            """)
 
     def clear_posts(self):
         while self.container_layout.count():
@@ -2538,7 +2656,7 @@ class MainWindow(QWidget):
 
     def update_auth_state(self):
         logged_in = bool(self.current_user)
-        self.menu_bar.setVisible(logged_in)
+        self.menu_bar.setVisible(False)
         self.notification_panel.setVisible(False)
         self.notify_badge.setVisible(False)
         self.btn_notify.setVisible(False)
@@ -3188,7 +3306,15 @@ class MainWindow(QWidget):
 
     def show_home(self):
         self.clear_content()
-        self.home = HomePage(self.show_detail, self.get_followers_count, self.get_user_avatar)
+        self.home = HomePage(
+            self.show_detail,
+            self.get_followers_count,
+            self.get_user_avatar,
+            self.show_profile,
+            self.show_create,
+            self.show_groups,
+            self.show_inline_message,
+        )
         self.content_area.addWidget(self.home)
 
     def show_detail(self, post):
