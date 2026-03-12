@@ -3,11 +3,15 @@ import os
 import sys
 import uuid
 import time
+import random
+import smtplib
+import ssl
+from email.message import EmailMessage
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel,
-    QPushButton, QScrollArea, QFrame, QHBoxLayout,
-    QTextEdit, QLineEdit, QFileDialog, QMessageBox,
+    QPushButton, QScrollArea, QFrame, QHBoxLayout, QGridLayout,
+    QTextEdit, QLineEdit, QFileDialog, QMessageBox, QInputDialog,
     QDialog, QDialogButtonBox, QComboBox
 )
 from PyQt5.QtGui import QPixmap, QFont, QPainter, QPainterPath, QColor, QPen
@@ -138,7 +142,7 @@ class InlineToast(QFrame):
         self.timer.timeout.connect(self.hide)
         self.hide()
 
-    def show_message(self, text, level="info", timeout=2000):
+    def show_message(self, text, level="info", timeout=4500):
         icon_map = {
             "success": "✅",
             "warning": "⚠️",
@@ -526,138 +530,209 @@ groups = load_groups()
 
 
 class PostCard(QFrame):
-    def __init__(self, post, open_callback, get_followers_count_callback, get_user_avatar_callback):
+    def __init__(self, post, open_callback, get_followers_count_callback, get_user_avatar_callback, featured=False):
         super().__init__()
         self.post = post
         self.open_callback = open_callback
-
-        self.setStyleSheet("""
-            QFrame {
-                background-color: rgba(0,0,0,0.35);
-                border-radius: 20px;
-                padding: 20px;
-                margin: 15px;
-                border: 1px solid rgba(255,255,255,0.2);
-            }
-            QFrame:hover {
-                background-color: rgba(0,0,0,0.55);
-                border: 1px solid white;
-            }
-        """)
+        self.featured = featured
 
         self.setCursor(Qt.PointingHandCursor)
-
-        layout = QHBoxLayout(self)
-        layout.setSpacing(25)
-
-        image_label = QLabel()
-        pixmap = QPixmap(post["image"])
-        if not pixmap.isNull():
-            pixmap = pixmap.scaled(220, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            image_label.setPixmap(pixmap)
-
-        content_layout = QVBoxLayout()
-
-        title = QLabel(post["title"])
-        title.setFont(QFont("Arial", 16, QFont.Bold))
-        title.setStyleSheet("color: white;")
-        title.setWordWrap(True)
-
-        preview = QLabel(post["content"][:150] + "...")
-        preview.setStyleSheet("color: #f1f1f1; font-size: 13px;")
-        preview.setWordWrap(True)
-
-        meta_box = QFrame()
-        meta_box.setStyleSheet("""
+        self.setStyleSheet("""
             QFrame {
-                background-color: rgba(255,255,255,0.16);
-                border: 1px solid rgba(255,255,255,0.35);
-                border-radius: 12px;
-                padding: 10px 14px;
+                background-color: white;
+                border-radius: 14px;
+                border: 1px solid #e2e8f0;
+            }
+            QFrame:hover {
+                border: 1px solid #cbd5e1;
+                background-color: #f8fafc;
             }
         """)
-        meta_layout = QHBoxLayout(meta_box)
-        meta_layout.setContentsMargins(10, 6, 10, 6)
-        meta_layout.setSpacing(10)
 
-        date = QLabel("🗓 " + post["date"])
-        date.setStyleSheet("color: white; font-size: 12px; font-weight: bold;")
+        layout = QVBoxLayout(self) if featured else QHBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+
+        image_label = QLabel()
+        pixmap = QPixmap(post.get("image", ""))
+        if not pixmap.isNull():
+            if featured:
+                pixmap = pixmap.scaled(340, 185, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            else:
+                pixmap = pixmap.scaled(92, 72, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            image_label.setPixmap(pixmap)
+        image_label.setStyleSheet("border-radius: 10px;")
 
         author_name = post.get("author", "Ẩn danh")
         followers_count = get_followers_count_callback(author_name)
-        author_avatar = build_avatar_label(get_user_avatar_callback(author_name), 30)
-        author = QLabel(f"👤 {author_name} | 👥 {followers_count} follower")
-        author.setStyleSheet("color: white; font-size: 12px; font-weight: bold;")
+        source = QLabel(f"{author_name} · {relative_time_text(post.get('date', '')) or post.get('date', '')}")
+        source.setStyleSheet("color: #64748b; font-size: 12px;")
 
-        likes_count = QLabel(f"👍 {len(post.get('likes', []))}")
-        likes_count.setStyleSheet("color: #fff; font-size: 12px; font-weight: bold;")
+        title = QLabel(post.get("title", ""))
+        title.setWordWrap(True)
+        title.setStyleSheet("color: #0f172a; font-size: 15px; font-weight: bold;")
 
-        comments_count = QLabel(f"💬 {len(post.get('comments', []))}")
-        comments_count.setStyleSheet("color: #fff; font-size: 12px; font-weight: bold;")
+        reads = QLabel(f"{max(80, followers_count * 7)} reads")
+        reads.setStyleSheet("color: #94a3b8; font-size: 12px;")
 
-        meta_layout.addWidget(date)
-        meta_layout.addWidget(author_avatar)
-        meta_layout.addWidget(author)
-        meta_layout.addWidget(likes_count)
-        meta_layout.addWidget(comments_count)
-        meta_layout.addStretch()
+        if featured:
+            layout.addWidget(image_label)
+            layout.addWidget(source)
+            layout.addWidget(title)
+            layout.addWidget(reads)
+        else:
+            text_col = QVBoxLayout()
+            text_col.setSpacing(4)
+            text_col.addWidget(source)
+            text_col.addWidget(title)
+            text_col.addWidget(reads)
+            text_col.addStretch()
 
-        content_layout.addWidget(title)
-        content_layout.addWidget(preview)
-        content_layout.addWidget(meta_box)
-
-        layout.addWidget(image_label)
-        layout.addLayout(content_layout)
+            layout.addLayout(text_col, 1)
+            if not pixmap.isNull():
+                layout.addWidget(image_label)
 
     def mousePressEvent(self, event):
         self.open_callback(self.post)
 
 
 class HomePage(QWidget):
-    def __init__(self, open_detail_callback, get_followers_count_callback, get_user_avatar_callback):
+    def __init__(
+        self,
+        open_detail_callback,
+        get_followers_count_callback,
+        get_user_avatar_callback,
+        show_profile_callback,
+        show_create_callback,
+        show_groups_callback,
+        show_message_callback,
+        toggle_notifications_callback,
+    ):
         super().__init__()
         self.open_detail_callback = open_detail_callback
         self.get_followers_count_callback = get_followers_count_callback
         self.get_user_avatar_callback = get_user_avatar_callback
+        self.show_profile_callback = show_profile_callback
+        self.show_create_callback = show_create_callback
+        self.show_groups_callback = show_groups_callback
+        self.show_message = show_message_callback
+        self.toggle_notifications_callback = toggle_notifications_callback
 
-        layout = QVBoxLayout(self)
+        root_layout = QHBoxLayout(self)
+        root_layout.setContentsMargins(18, 14, 18, 14)
+        root_layout.setSpacing(14)
 
-        title = QLabel("📰 Trang chủ - Danh sách bài viết")
-        title.setFont(QFont("Arial", 24, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: white; padding: 20px;")
-
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔎 Tìm theo tiêu đề hoặc nội dung...")
-        self.search_input.setFixedHeight(42)
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                background-color: rgba(255,255,255,0.95);
-                border-radius: 21px;
-                padding: 0 14px;
-                font-size: 13px;
-                border: 1px solid rgba(0,0,0,0.1);
-                margin: 0 20px 10px 20px;
-            }
-            QLineEdit:focus {
-                border: 2px solid #4e73df;
+        side_panel = QFrame()
+        side_panel.setFixedWidth(250)
+        side_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.93);
+                border: 1px solid rgba(15,23,42,0.12);
+                border-radius: 14px;
             }
         """)
+        side_layout = QVBoxLayout(side_panel)
+        side_layout.setContentsMargins(14, 14, 14, 14)
+        side_layout.setSpacing(10)
+
+        app_name = QLabel("NovaNews")
+        app_name.setStyleSheet("color:#0f172a; font-size:22px; font-weight:900;")
+        app_sub = QLabel("Ứng dụng tin tức desktop")
+        app_sub.setStyleSheet("color:#475569; font-size:12px;")
+
+        self.btn_notify = QPushButton("🔔 Trung tâm thông báo")
+        self.btn_notify.clicked.connect(self.toggle_notifications_callback)
+        self.btn_create = QPushButton("✍️ Tạo bài mới")
+        self.btn_create.clicked.connect(self.show_create_callback)
+        self.btn_profile = QPushButton("👤 Hồ sơ cá nhân")
+        self.btn_profile.clicked.connect(self.show_profile_callback)
+        self.btn_groups = QPushButton("👥 Quản lý nhóm")
+        self.btn_groups.clicked.connect(self.show_groups_callback)
+
+        for btn, color in [
+            (self.btn_notify, "#4f46e5"),
+            (self.btn_create, "#0ea5e9"),
+            (self.btn_profile, "#10b981"),
+            (self.btn_groups, "#f59e0b"),
+        ]:
+            btn.setFixedHeight(42)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color};
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    text-align: left;
+                    padding: 0 12px;
+                    font-size: 13px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(15,23,42,0.78);
+                }}
+            """)
+
+        side_layout.addWidget(app_name)
+        side_layout.addWidget(app_sub)
+        side_layout.addSpacing(6)
+        side_layout.addWidget(self.btn_notify)
+        side_layout.addWidget(self.btn_create)
+        side_layout.addWidget(self.btn_profile)
+        side_layout.addWidget(self.btn_groups)
+        side_layout.addStretch()
+
+        main_panel = QFrame()
+        main_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.95);
+                border: 1px solid rgba(15,23,42,0.10);
+                border-radius: 14px;
+            }
+        """)
+        main_layout = QVBoxLayout(main_panel)
+        main_layout.setContentsMargins(16, 14, 16, 14)
+        main_layout.setSpacing(10)
+
+        top_bar = QHBoxLayout()
+        title = QLabel("Bảng tin hôm nay")
+        title.setStyleSheet("color:#0f172a; font-size:24px; font-weight:900;")
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Tìm theo tiêu đề hoặc nội dung...")
+        self.search_input.setFixedHeight(38)
+        self.search_input.setMinimumWidth(380)
         self.search_input.textChanged.connect(self.filter_posts)
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #f8fafc;
+                border: 1px solid #cbd5e1;
+                border-radius: 10px;
+                padding: 0 12px;
+                color: #0f172a;
+                font-size: 13px;
+            }
+            QLineEdit:focus { border: 2px solid #4f46e5; }
+        """)
+
+        top_bar.addWidget(title)
+        top_bar.addStretch()
+        top_bar.addWidget(self.search_input)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("border: none;")
+        self.scroll.setStyleSheet("border: none; background: transparent;")
 
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
         self.container_layout.setContentsMargins(0, 0, 0, 0)
-
+        self.container_layout.setSpacing(10)
         self.scroll.setWidget(self.container)
 
-        layout.addWidget(title)
-        layout.addWidget(self.search_input)
-        layout.addWidget(self.scroll)
+        main_layout.addLayout(top_bar)
+        main_layout.addWidget(self.scroll)
+
+        root_layout.addWidget(side_panel)
+        root_layout.addWidget(main_panel, 1)
 
         self.render_posts()
 
@@ -670,7 +745,6 @@ class HomePage(QWidget):
 
     def render_posts(self, keyword=""):
         self.clear_posts()
-
         normalized_keyword = keyword.strip().lower()
         filtered_posts = []
 
@@ -684,14 +758,20 @@ class HomePage(QWidget):
             if title_match or content_match:
                 filtered_posts.append(post)
 
-        for post in filtered_posts:
-            card = PostCard(post, self.open_detail_callback, self.get_followers_count_callback, self.get_user_avatar_callback)
+        for idx, post in enumerate(filtered_posts):
+            card = PostCard(
+                post,
+                self.open_detail_callback,
+                self.get_followers_count_callback,
+                self.get_user_avatar_callback,
+                featured=(idx == 0),
+            )
             self.container_layout.addWidget(card)
 
         if not filtered_posts:
             empty_label = QLabel("Không tìm thấy bài viết phù hợp.")
             empty_label.setAlignment(Qt.AlignCenter)
-            empty_label.setStyleSheet("color: #f1f1f1; font-size: 14px; padding: 20px;")
+            empty_label.setStyleSheet("color: #475569; font-size: 14px; padding: 20px;")
             self.container_layout.addWidget(empty_label)
 
         self.container_layout.addStretch()
@@ -941,9 +1021,10 @@ class DetailPage(QWidget):
 
 
 class CreatePage(QWidget):
-    def __init__(self, publish_callback, get_current_user_callback, show_message_callback, post_created_callback):
+    def __init__(self, back_callback, publish_callback, get_current_user_callback, show_message_callback, post_created_callback):
         super().__init__()
 
+        self.back_callback = back_callback
         self.publish_callback = publish_callback
         self.get_current_user_callback = get_current_user_callback
         self.show_message = show_message_callback
@@ -953,6 +1034,11 @@ class CreatePage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(300, 50, 300, 50)
         layout.setSpacing(20)
+
+        back_btn = QPushButton("← Quay lại")
+        back_btn.setFixedHeight(40)
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 20px; padding: 0 14px; font-weight: bold;")
+        back_btn.clicked.connect(self.back_callback)
 
         title_label = QLabel("✍ Tạo bài viết mới")
         title_label.setFont(QFont("Arial", 26, QFont.Bold))
@@ -1032,6 +1118,7 @@ class CreatePage(QWidget):
         """)
         publish_btn.clicked.connect(self.publish_post)
 
+        layout.addWidget(back_btn)
         layout.addWidget(title_label)
         layout.addWidget(self.title_input)
         layout.addWidget(self.content_input)
@@ -1091,6 +1178,7 @@ class GroupPage(QWidget):
         leave_group_callback,
         create_group_post_callback,
         delete_group_post_callback,
+        back_callback,
     ):
         super().__init__()
         self.get_current_user_callback = get_current_user_callback
@@ -1105,6 +1193,7 @@ class GroupPage(QWidget):
         self.leave_group_callback = leave_group_callback
         self.create_group_post_callback = create_group_post_callback
         self.delete_group_post_callback = delete_group_post_callback
+        self.back_callback = back_callback
 
         self.primary_btn_style = """
             QPushButton {
@@ -1181,10 +1270,16 @@ class GroupPage(QWidget):
             if widget:
                 widget.deleteLater()
 
+        back_btn = QPushButton("← Quay lại")
+        back_btn.setFixedHeight(40)
+        back_btn.setStyleSheet(self.primary_btn_style)
+        back_btn.clicked.connect(self.back_callback)
+
         title = QLabel("👥 Nhóm riêng")
         title.setFont(QFont("Arial", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:white;")
+        self.layout.addWidget(back_btn)
         self.layout.addWidget(title)
 
         current_user = self.get_current_user_callback()
@@ -1570,6 +1665,190 @@ class StableDurationComboBox(QComboBox):
         super().wheelEvent(event)
 
 
+class AuthGatePage(QWidget):
+    def __init__(self, login_callback, register_callback, forgot_password_callback, show_message_callback):
+        super().__init__()
+        self.login_callback = login_callback
+        self.register_callback = register_callback
+        self.forgot_password_callback = forgot_password_callback
+        self.show_message = show_message_callback
+
+        root = QHBoxLayout(self)
+        root.setContentsMargins(40, 30, 40, 30)
+        root.setSpacing(20)
+
+        intro = QFrame()
+        intro.setMinimumWidth(760)
+        intro.setStyleSheet("""
+            QFrame {
+                background-color: rgba(15,23,42,0.30);
+                border: 1px solid rgba(255,255,255,0.35);
+                border-radius: 16px;
+            }
+        """)
+        intro_layout = QVBoxLayout(intro)
+        intro_layout.setContentsMargins(24, 24, 24, 24)
+
+        image_grid = QGridLayout()
+        image_grid.setContentsMargins(0, 0, 0, 0)
+        image_grid.setHorizontalSpacing(14)
+        image_grid.setVerticalSpacing(14)
+
+        image_names = ["anh1.jpg", "anh2.jpg", "anh3.jpg", "anh4.jpg"]
+        for idx, image_name in enumerate(image_names):
+            image_label = QLabel()
+            image_label.setMinimumSize(330, 215)
+            image_label.setSizePolicy(image_label.sizePolicy().Expanding, image_label.sizePolicy().Expanding)
+            image_label.setAlignment(Qt.AlignCenter)
+
+            pixmap = QPixmap(image_name)
+            if not pixmap.isNull():
+                scaled = pixmap.scaled(
+                    image_label.width(),
+                    image_label.height(),
+                    Qt.KeepAspectRatioByExpanding,
+                    Qt.SmoothTransformation,
+                )
+                image_label.setPixmap(scaled)
+                image_label.setStyleSheet("border-radius: 12px; border: 3px solid white; background-color: white;")
+            else:
+                image_label.setText(f"Không tìm thấy\n{image_name}")
+                image_label.setStyleSheet(
+                    "color: #e2e8f0; border-radius: 12px; border: 3px dashed rgba(255,255,255,0.9);"
+                    "background-color: rgba(255,255,255,0.08); font-size: 12px;"
+                )
+
+            row = idx // 2
+            col = idx % 2
+            image_grid.addWidget(image_label, row, col)
+
+        intro_layout.addLayout(image_grid)
+        intro_layout.addStretch()
+
+        form = QFrame()
+        form.setFixedWidth(420)
+        form.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.96);
+                border-radius: 16px;
+                border: 1px solid rgba(15,23,42,0.10);
+            }
+        """)
+        form_layout = QVBoxLayout(form)
+        form_layout.setContentsMargins(24, 24, 24, 24)
+        form_layout.setSpacing(10)
+
+        title = QLabel("Đăng nhập hệ thống")
+        title.setStyleSheet("color:#0f172a; font-size:24px; font-weight:800;")
+
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("Tên đăng nhập")
+        self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Mật khẩu")
+        self.password_input.setEchoMode(QLineEdit.Password)
+
+        for field in [self.username_input, self.password_input]:
+            field.setFixedHeight(42)
+            field.setStyleSheet("""
+                QLineEdit {
+                    background-color: #f8fafc;
+                    color: #0f172a;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 10px;
+                    padding: 0 12px;
+                }
+                QLineEdit:focus { border: 2px solid #4f46e5; }
+            """)
+
+        self.btn_login = QPushButton("Đăng nhập")
+        self.btn_register = QPushButton("Tạo tài khoản")
+        self.btn_login.setFixedHeight(42)
+        self.btn_register.setFixedHeight(42)
+
+        self.btn_login.setStyleSheet("""
+            QPushButton {
+                background-color: #4f46e5;
+                color: white;
+                border-radius: 10px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover { background-color: #4338ca; }
+        """)
+        self.btn_register.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: #334155;
+                border-radius: 10px;
+                border: 1px solid #cbd5e1;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #f8fafc; }
+        """)
+
+        self.btn_forgot = QPushButton("Quên mật khẩu?")
+        self.btn_forgot.setCursor(Qt.PointingHandCursor)
+        self.btn_forgot.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #4f46e5;
+                border: none;
+                text-align: left;
+                padding: 2px 2px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                color: #312e81;
+                text-decoration: underline;
+            }
+        """)
+
+        self.btn_login.clicked.connect(self.handle_login)
+        self.btn_register.clicked.connect(self.handle_register)
+        self.btn_forgot.clicked.connect(self.handle_forgot_password)
+        self.password_input.returnPressed.connect(self.handle_login)
+
+        form_layout.addWidget(title)
+        form_layout.addSpacing(4)
+        form_layout.addWidget(self.username_input)
+        form_layout.addWidget(self.password_input)
+        form_layout.addWidget(self.btn_login)
+        form_layout.addWidget(self.btn_register)
+        form_layout.addWidget(self.btn_forgot)
+        form_layout.addStretch()
+
+        root.addWidget(intro, 2)
+        root.addWidget(form)
+
+    def handle_login(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+        success, message, lock_notice = self.login_callback(username, password)
+        if success:
+            self.show_message(message, "success")
+            self.clear_inputs()
+        else:
+            self.show_message(lock_notice or message, "warning")
+
+    def handle_register(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+        success, message = self.register_callback(username, password)
+        if success:
+            self.show_message(message, "success")
+            self.clear_inputs()
+        else:
+            self.show_message(message, "warning")
+
+    def handle_forgot_password(self):
+        self.forgot_password_callback()
+
+    def clear_inputs(self):
+        self.username_input.clear()
+        self.password_input.clear()
+
+
 class ProfilePage(QWidget):
     def __init__(
         self,
@@ -1585,6 +1864,7 @@ class ProfilePage(QWidget):
         show_message_callback,
         admin_suspend_callback,
         admin_delete_post_callback,
+        back_callback,
     ):
         super().__init__()
         self.get_current_user_callback = get_current_user_callback
@@ -1599,6 +1879,7 @@ class ProfilePage(QWidget):
         self.show_message = show_message_callback
         self.admin_suspend_callback = admin_suspend_callback
         self.admin_delete_post_callback = admin_delete_post_callback
+        self.back_callback = back_callback
         self.editing_post = None
         self.delete_pending_post_id = None
 
@@ -1622,10 +1903,16 @@ class ProfilePage(QWidget):
     def render_ui(self):
         self.clear_layout()
 
+        back_btn = QPushButton("← Quay lại")
+        back_btn.setFixedHeight(40)
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.92); color: #1e2a56; border-radius: 20px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 14px;")
+        back_btn.clicked.connect(self.back_callback)
+
         title = QLabel("👤 Trang hồ sơ người dùng")
         title.setFont(QFont("Arial", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: white;")
+        self.layout.addWidget(back_btn)
         self.layout.addWidget(title)
 
         current_user = self.get_current_user_callback()
@@ -2050,8 +2337,7 @@ class ProfilePage(QWidget):
         if file_path:
             self.set_user_avatar_callback(current_user, file_path)
             self.show_message("Cập nhật ảnh đại diện thành công!", "success")
-            self.refresh_home_callback()
-            self.render_ui()
+        self.render_ui()
 
     def handle_login(self):
         username = self.username_input.text().strip()
@@ -2088,7 +2374,6 @@ class ProfilePage(QWidget):
 
     def handle_toggle_follow(self, target_user):
         self.toggle_follow_callback(target_user)
-        self.refresh_home_callback()
         self.render_ui()
 
     def handle_edit_post(self, post):
@@ -2110,7 +2395,6 @@ class ProfilePage(QWidget):
         self.editing_post = None
         save_posts(posts)
         self.show_message("Đã cập nhật bài viết!", "success")
-        self.refresh_home_callback()
         self.render_ui()
 
     def handle_cancel_edit(self):
@@ -2131,7 +2415,6 @@ class ProfilePage(QWidget):
             self.editing_post = None
         save_posts(posts)
         self.show_message("Đã xóa bài viết!", "success")
-        self.refresh_home_callback()
         self.render_ui()
 
     def reset_delete_pending(self):
@@ -2147,7 +2430,6 @@ class ProfilePage(QWidget):
         success, message = self.admin_delete_post_callback(post)
         self.show_message(message, "success" if success else "error")
         if success:
-            self.refresh_home_callback()
             self.render_ui()
 
 
@@ -2158,7 +2440,7 @@ class MainWindow(QWidget):
         self.current_user = None
 
         self.setWindowTitle("NovaNews Desktop")
-        self.resize(1200, 800)
+        self.resize(1440, 900)
 
         self.main_layout = QVBoxLayout(self)
 
@@ -2173,30 +2455,34 @@ class MainWindow(QWidget):
 
         self.main_layout.addWidget(self.app_title)
 
-        menu_layout = QHBoxLayout()
+        self.menu_bar = QFrame()
+        self.menu_bar.setStyleSheet("background: transparent;")
+        menu_layout = QHBoxLayout(self.menu_bar)
+        menu_layout.setContentsMargins(0, 0, 0, 0)
         menu_layout.setSpacing(25)
         menu_layout.setAlignment(Qt.AlignCenter)
 
-        self.btn_home = QPushButton("Trang chủ")
-        self.btn_create = QPushButton("Tạo bài")
-        self.btn_profile = QPushButton("Hồ sơ")
-        self.btn_groups = QPushButton("Nhóm")
+        self.btn_home = QPushButton("🏠 Home")
+        self.btn_create = QPushButton("🌐 Top stories")
+        self.btn_profile = QPushButton("👤 Profile")
+        self.btn_groups = QPushButton("👥 Groups")
 
         for btn in [self.btn_home, self.btn_create, self.btn_profile, self.btn_groups]:
-            btn.setFixedSize(200, 55)
-            btn.setFont(QFont("Arial", 14, QFont.Bold))
+            btn.setFixedSize(165, 54)
+            btn.setFont(QFont("Arial", 12, QFont.Bold))
             btn.setStyleSheet("""
                 QPushButton {
-                    background-color: rgba(255,255,255,0.96);
-                    border-radius: 27px;
-                    border: 1px solid rgba(0,0,0,0.1);
-                    padding: 0 18px;
+                    background-color: rgba(255,255,255,0.98);
+                    color: #1e293b;
+                    border-radius: 24px;
+                    border: 1px solid #e2e8f0;
+                    padding: 0 14px;
                 }
                 QPushButton:hover {
-                    background-color: #dbe4ff;
+                    background-color: #f8fafc;
                 }
                 QPushButton:pressed {
-                    background-color: #b8c6ff;
+                    background-color: #eef2ff;
                 }
             """)
 
@@ -2246,16 +2532,17 @@ class MainWindow(QWidget):
         menu_layout.addWidget(self.btn_groups)
         menu_layout.addWidget(notify_wrapper)
 
-        self.main_layout.addLayout(menu_layout)
+        self.main_layout.addWidget(self.menu_bar)
 
         self.notification_panel = QFrame()
         self.notification_panel.setVisible(False)
+        self.notification_panel.setMinimumHeight(360)
         self.notification_panel.setStyleSheet("""
             QFrame {
-                background-color: rgba(0,0,0,0.32);
-                border: 1px solid rgba(255,255,255,0.35);
-                border-radius: 14px;
-                margin: 5px 90px;
+                background-color: rgba(15,23,42,0.92);
+                border: 1px solid rgba(255,255,255,0.45);
+                border-radius: 18px;
+                margin: 8px 24px;
             }
         """)
 
@@ -2309,6 +2596,7 @@ class MainWindow(QWidget):
         action_row.addStretch()
 
         self.notification_scroll = QScrollArea()
+        self.notification_scroll.setMinimumHeight(260)
         self.notification_scroll.setWidgetResizable(True)
         self.notification_scroll.setStyleSheet("border: none;")
 
@@ -2328,15 +2616,38 @@ class MainWindow(QWidget):
 
         self.toast = InlineToast(self)
 
-        self.show_home()
+        self.update_auth_state()
         self.update_notification_badge()
+
+    def update_auth_state(self):
+        logged_in = bool(self.current_user)
+        self.menu_bar.setVisible(False)
+        self.notification_panel.setVisible(False)
+        self.notify_badge.setVisible(False)
+        self.btn_notify.setVisible(False)
+        self.app_title.setVisible(not logged_in)
+
+        if logged_in:
+            self.show_home()
+        else:
+            self.show_auth_gate()
+
+    def show_auth_gate(self):
+        self.clear_content()
+        self.auth_gate_page = AuthGatePage(
+            self.login_user,
+            self.register_user,
+            self.forgot_password_user,
+            self.show_inline_message,
+        )
+        self.content_area.addWidget(self.auth_gate_page)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.toast.isVisible():
             self.toast.show_message(self.toast.text_label.text(), "info", max(1, self.toast.timer.remainingTime()))
 
-    def show_inline_message(self, text, level="info", timeout=2000):
+    def show_inline_message(self, text, level="info", timeout=4500):
         self.toast.show_message(text, level, timeout)
 
     def get_current_user(self):
@@ -2388,6 +2699,124 @@ class MainWindow(QWidget):
             follows[current_user].append(target_user)
         save_follows(follows)
 
+    def send_reset_code_email(self, recipient_email, code, username):
+        smtp_server = os.environ.get("NEWS_SMTP_SERVER", "")
+        smtp_port = int(os.environ.get("NEWS_SMTP_PORT", "587"))
+        smtp_user = os.environ.get("NEWS_SMTP_USER", "")
+        smtp_password = os.environ.get("NEWS_SMTP_PASS", "")
+        sender = os.environ.get("NEWS_SMTP_SENDER", smtp_user)
+
+        if not (smtp_server and smtp_user and smtp_password and sender):
+            return False, "Chưa cấu hình SMTP (NEWS_SMTP_SERVER/USER/PASS)."
+
+        message = EmailMessage()
+        message["Subject"] = "Mã xác thực đặt lại mật khẩu NovaNews"
+        message["From"] = sender
+        message["To"] = recipient_email
+        message.set_content(
+            f"Xin chào {username},\n\n"
+            f"Mã xác thực đặt lại mật khẩu của bạn là: {code}\n"
+            "Mã có hiệu lực trong 10 phút."
+        )
+
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=20) as server:
+                server.starttls(context=context)
+                server.login(smtp_user, smtp_password)
+                server.send_message(message)
+            return True, "Đã gửi mã xác thực qua email."
+        except Exception as exc:
+            return False, f"Không gửi được email: {exc}"
+
+    def forgot_password_user(self):
+        username, ok = QInputDialog.getText(self, "Quên mật khẩu", "Nhập tên đăng nhập:")
+        if not ok:
+            return
+        username = username.strip()
+        if not username:
+            self.show_inline_message("Tên đăng nhập không được để trống.", "warning")
+            return
+
+        user_data = users.get(username)
+        if not user_data:
+            self.show_inline_message("Không tìm thấy tài khoản.", "error")
+            return
+
+        email_value, ok = QInputDialog.getText(self, "Xác thực email", "Nhập email nhận mã:")
+        if not ok:
+            return
+        email_value = email_value.strip().lower()
+        if not email_value or "@" not in email_value:
+            self.show_inline_message("Email không hợp lệ.", "warning")
+            return
+
+        if isinstance(user_data, str):
+            user_data = {
+                "password": user_data,
+                "avatar": "",
+                "suspended_until": "",
+                "suspend_reason": "",
+                "suspended_by": "",
+                "suspended_at": "",
+                "suspend_duration_label": "",
+                "email": "",
+            }
+            users[username] = user_data
+
+        saved_email = user_data.get("email", "").strip().lower()
+        if saved_email and saved_email != email_value:
+            self.show_inline_message("Email không khớp với email đã đăng ký.", "error")
+            return
+
+        code = f"{random.randint(0, 999999):06d}"
+        sent, info = self.send_reset_code_email(email_value, code, username)
+        if sent:
+            self.show_inline_message(info, "success")
+        else:
+            QMessageBox.information(
+                self,
+                "Mã xác thực tạm thời",
+                f"{info}\n\nDo chưa gửi được email trong môi trường hiện tại, mã tạm là: {code}",
+            )
+
+        code_input, ok = QInputDialog.getText(self, "Nhập mã xác thực", "Nhập mã 6 số đã nhận:")
+        if not ok:
+            return
+        if code_input.strip() != code:
+            self.show_inline_message("Mã xác thực không đúng.", "error")
+            return
+
+        new_password, ok = QInputDialog.getText(
+            self,
+            "Đặt mật khẩu mới",
+            "Nhập mật khẩu mới:",
+            QLineEdit.Password,
+        )
+        if not ok:
+            return
+        new_password = new_password.strip()
+        if len(new_password) < 4:
+            self.show_inline_message("Mật khẩu mới phải có ít nhất 4 ký tự.", "warning")
+            return
+
+        confirm_password, ok = QInputDialog.getText(
+            self,
+            "Xác nhận mật khẩu",
+            "Nhập lại mật khẩu mới:",
+            QLineEdit.Password,
+        )
+        if not ok:
+            return
+        if confirm_password.strip() != new_password:
+            self.show_inline_message("Mật khẩu xác nhận không khớp.", "error")
+            return
+
+        user_data["password"] = new_password
+        user_data["email"] = email_value
+        save_users(users)
+        self.show_inline_message("Đổi mật khẩu thành công. Bạn có thể đăng nhập lại.", "success")
+
     def login_user(self, username, password):
         user_data = users.get(username)
         if isinstance(user_data, str):
@@ -2423,6 +2852,7 @@ class MainWindow(QWidget):
         save_notifications(notifications)
         self.update_notification_badge()
         self.render_notifications()
+        self.update_auth_state()
         return True, "Đăng nhập thành công!", ""
 
     def register_user(self, username, password):
@@ -2450,19 +2880,20 @@ class MainWindow(QWidget):
         self.current_user = username
         self.update_notification_badge()
         self.render_notifications()
+        self.update_auth_state()
         return True, "Đăng ký thành công và đã đăng nhập!"
 
     def logout_user(self):
         self.current_user = None
         self.update_notification_badge()
         self.render_notifications()
+        self.update_auth_state()
 
     def save_all(self):
         save_posts(posts)
         save_follows(follows)
         save_notifications(notifications)
         save_groups(groups)
-        self.show_home()
 
     def create_interaction_notification(self, post, actor, action):
         author = post.get("author")
@@ -2533,9 +2964,11 @@ class MainWindow(QWidget):
         self.notify_badge.setVisible(unread_count > 0)
 
     def toggle_notification_panel(self):
-        self.notification_panel.setVisible(not self.notification_panel.isVisible())
-        if self.notification_panel.isVisible():
+        should_show = not self.notification_panel.isVisible()
+        self.notification_panel.setVisible(should_show)
+        if should_show:
             self.render_notifications()
+            self.notification_panel.raise_()
 
     def clear_notification_widgets(self):
         while self.notification_layout.count():
@@ -2582,11 +3015,11 @@ class MainWindow(QWidget):
                 label.setStyleSheet("color: white;")
 
                 open_btn = QPushButton("Mở")
-                open_btn.setFixedWidth(70)
+                open_btn.setFixedWidth(92)
                 open_btn.clicked.connect(lambda _, n=item: self.open_notification(n))
 
                 remove_btn = QPushButton("Xóa")
-                remove_btn.setFixedWidth(70)
+                remove_btn.setFixedWidth(92)
                 remove_btn.clicked.connect(lambda _, n=item: self.delete_notification(n))
 
                 row_layout.addWidget(label, 1)
@@ -2958,7 +3391,16 @@ class MainWindow(QWidget):
 
     def show_home(self):
         self.clear_content()
-        self.home = HomePage(self.show_detail, self.get_followers_count, self.get_user_avatar)
+        self.home = HomePage(
+            self.show_detail,
+            self.get_followers_count,
+            self.get_user_avatar,
+            self.show_profile,
+            self.show_create,
+            self.show_groups,
+            self.show_inline_message,
+            self.toggle_notification_panel,
+        )
         self.content_area.addWidget(self.home)
 
     def show_detail(self, post):
@@ -2968,7 +3410,7 @@ class MainWindow(QWidget):
 
     def show_create(self):
         self.clear_content()
-        self.create_page = CreatePage(self.show_home, self.get_current_user, self.show_inline_message, self.notify_new_post_activity)
+        self.create_page = CreatePage(self.show_home, self.show_home, self.get_current_user, self.show_inline_message, self.notify_new_post_activity)
         self.content_area.addWidget(self.create_page)
 
     def show_groups(self):
@@ -2986,6 +3428,7 @@ class MainWindow(QWidget):
             self.leave_group,
             self.create_group_post,
             self.delete_group_post,
+            self.show_home,
         )
         self.content_area.addWidget(self.group_page)
 
@@ -3003,7 +3446,8 @@ class MainWindow(QWidget):
             self.set_user_avatar,
             self.show_inline_message,
             self.admin_suspend_user,
-            self.admin_delete_post
+            self.admin_delete_post,
+            self.show_home,
         )
         self.content_area.addWidget(self.profile_page)
 
@@ -3025,6 +3469,17 @@ if __name__ == "__main__":
                 stop:0 #4e73df,
                 stop:1 #1cc88a
             );
+        }
+        QPushButton {
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            opacity: 0.92;
+        }
+        QLineEdit, QTextEdit {
+            border-radius: 12px;
         }
     """)
 
