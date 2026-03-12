@@ -3,11 +3,15 @@ import os
 import sys
 import uuid
 import time
+import random
+import smtplib
+import ssl
+from email.message import EmailMessage
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel,
     QPushButton, QScrollArea, QFrame, QHBoxLayout, QGridLayout,
-    QTextEdit, QLineEdit, QFileDialog, QMessageBox,
+    QTextEdit, QLineEdit, QFileDialog, QMessageBox, QInputDialog,
     QDialog, QDialogButtonBox, QComboBox
 )
 from PyQt5.QtGui import QPixmap, QFont, QPainter, QPainterPath, QColor, QPen
@@ -1662,10 +1666,11 @@ class StableDurationComboBox(QComboBox):
 
 
 class AuthGatePage(QWidget):
-    def __init__(self, login_callback, register_callback, show_message_callback):
+    def __init__(self, login_callback, register_callback, forgot_password_callback, show_message_callback):
         super().__init__()
         self.login_callback = login_callback
         self.register_callback = register_callback
+        self.forgot_password_callback = forgot_password_callback
         self.show_message = show_message_callback
 
         root = QHBoxLayout(self)
@@ -1781,8 +1786,27 @@ class AuthGatePage(QWidget):
             QPushButton:hover { background-color: #f8fafc; }
         """)
 
+        self.btn_forgot = QPushButton("Quên mật khẩu?")
+        self.btn_forgot.setCursor(Qt.PointingHandCursor)
+        self.btn_forgot.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #4f46e5;
+                border: none;
+                text-align: left;
+                padding: 2px 2px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                color: #312e81;
+                text-decoration: underline;
+            }
+        """)
+
         self.btn_login.clicked.connect(self.handle_login)
         self.btn_register.clicked.connect(self.handle_register)
+        self.btn_forgot.clicked.connect(self.handle_forgot_password)
         self.password_input.returnPressed.connect(self.handle_login)
 
         form_layout.addWidget(title)
@@ -1791,6 +1815,7 @@ class AuthGatePage(QWidget):
         form_layout.addWidget(self.password_input)
         form_layout.addWidget(self.btn_login)
         form_layout.addWidget(self.btn_register)
+        form_layout.addWidget(self.btn_forgot)
         form_layout.addStretch()
 
         root.addWidget(intro, 2)
@@ -1815,6 +1840,9 @@ class AuthGatePage(QWidget):
             self.clear_inputs()
         else:
             self.show_message(message, "warning")
+
+    def handle_forgot_password(self):
+        self.forgot_password_callback()
 
     def clear_inputs(self):
         self.username_input.clear()
@@ -2609,6 +2637,7 @@ class MainWindow(QWidget):
         self.auth_gate_page = AuthGatePage(
             self.login_user,
             self.register_user,
+            self.forgot_password_user,
             self.show_inline_message,
         )
         self.content_area.addWidget(self.auth_gate_page)
@@ -2669,6 +2698,124 @@ class MainWindow(QWidget):
         else:
             follows[current_user].append(target_user)
         save_follows(follows)
+
+    def send_reset_code_email(self, recipient_email, code, username):
+        smtp_server = os.environ.get("NEWS_SMTP_SERVER", "")
+        smtp_port = int(os.environ.get("NEWS_SMTP_PORT", "587"))
+        smtp_user = os.environ.get("NEWS_SMTP_USER", "")
+        smtp_password = os.environ.get("NEWS_SMTP_PASS", "")
+        sender = os.environ.get("NEWS_SMTP_SENDER", smtp_user)
+
+        if not (smtp_server and smtp_user and smtp_password and sender):
+            return False, "Chưa cấu hình SMTP (NEWS_SMTP_SERVER/USER/PASS)."
+
+        message = EmailMessage()
+        message["Subject"] = "Mã xác thực đặt lại mật khẩu NovaNews"
+        message["From"] = sender
+        message["To"] = recipient_email
+        message.set_content(
+            f"Xin chào {username},\n\n"
+            f"Mã xác thực đặt lại mật khẩu của bạn là: {code}\n"
+            "Mã có hiệu lực trong 10 phút."
+        )
+
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=20) as server:
+                server.starttls(context=context)
+                server.login(smtp_user, smtp_password)
+                server.send_message(message)
+            return True, "Đã gửi mã xác thực qua email."
+        except Exception as exc:
+            return False, f"Không gửi được email: {exc}"
+
+    def forgot_password_user(self):
+        username, ok = QInputDialog.getText(self, "Quên mật khẩu", "Nhập tên đăng nhập:")
+        if not ok:
+            return
+        username = username.strip()
+        if not username:
+            self.show_inline_message("Tên đăng nhập không được để trống.", "warning")
+            return
+
+        user_data = users.get(username)
+        if not user_data:
+            self.show_inline_message("Không tìm thấy tài khoản.", "error")
+            return
+
+        email_value, ok = QInputDialog.getText(self, "Xác thực email", "Nhập email nhận mã:")
+        if not ok:
+            return
+        email_value = email_value.strip().lower()
+        if not email_value or "@" not in email_value:
+            self.show_inline_message("Email không hợp lệ.", "warning")
+            return
+
+        if isinstance(user_data, str):
+            user_data = {
+                "password": user_data,
+                "avatar": "",
+                "suspended_until": "",
+                "suspend_reason": "",
+                "suspended_by": "",
+                "suspended_at": "",
+                "suspend_duration_label": "",
+                "email": "",
+            }
+            users[username] = user_data
+
+        saved_email = user_data.get("email", "").strip().lower()
+        if saved_email and saved_email != email_value:
+            self.show_inline_message("Email không khớp với email đã đăng ký.", "error")
+            return
+
+        code = f"{random.randint(0, 999999):06d}"
+        sent, info = self.send_reset_code_email(email_value, code, username)
+        if sent:
+            self.show_inline_message(info, "success")
+        else:
+            QMessageBox.information(
+                self,
+                "Mã xác thực tạm thời",
+                f"{info}\n\nDo chưa gửi được email trong môi trường hiện tại, mã tạm là: {code}",
+            )
+
+        code_input, ok = QInputDialog.getText(self, "Nhập mã xác thực", "Nhập mã 6 số đã nhận:")
+        if not ok:
+            return
+        if code_input.strip() != code:
+            self.show_inline_message("Mã xác thực không đúng.", "error")
+            return
+
+        new_password, ok = QInputDialog.getText(
+            self,
+            "Đặt mật khẩu mới",
+            "Nhập mật khẩu mới:",
+            QLineEdit.Password,
+        )
+        if not ok:
+            return
+        new_password = new_password.strip()
+        if len(new_password) < 4:
+            self.show_inline_message("Mật khẩu mới phải có ít nhất 4 ký tự.", "warning")
+            return
+
+        confirm_password, ok = QInputDialog.getText(
+            self,
+            "Xác nhận mật khẩu",
+            "Nhập lại mật khẩu mới:",
+            QLineEdit.Password,
+        )
+        if not ok:
+            return
+        if confirm_password.strip() != new_password:
+            self.show_inline_message("Mật khẩu xác nhận không khớp.", "error")
+            return
+
+        user_data["password"] = new_password
+        user_data["email"] = email_value
+        save_users(users)
+        self.show_inline_message("Đổi mật khẩu thành công. Bạn có thể đăng nhập lại.", "success")
 
     def login_user(self, username, password):
         user_data = users.get(username)
