@@ -2281,8 +2281,7 @@ class ProfilePage(QWidget):
         if file_path:
             self.set_user_avatar_callback(current_user, file_path)
             self.show_message("Cập nhật ảnh đại diện thành công!", "success")
-            self.refresh_home_callback()
-            self.render_ui()
+        self.render_ui()
 
     def handle_login(self):
         username = self.username_input.text().strip()
@@ -2319,7 +2318,6 @@ class ProfilePage(QWidget):
 
     def handle_toggle_follow(self, target_user):
         self.toggle_follow_callback(target_user)
-        self.refresh_home_callback()
         self.render_ui()
 
     def handle_edit_post(self, post):
@@ -2341,7 +2339,6 @@ class ProfilePage(QWidget):
         self.editing_post = None
         save_posts(posts)
         self.show_message("Đã cập nhật bài viết!", "success")
-        self.refresh_home_callback()
         self.render_ui()
 
     def handle_cancel_edit(self):
@@ -2362,7 +2359,6 @@ class ProfilePage(QWidget):
             self.editing_post = None
         save_posts(posts)
         self.show_message("Đã xóa bài viết!", "success")
-        self.refresh_home_callback()
         self.render_ui()
 
     def reset_delete_pending(self):
@@ -2378,7 +2374,6 @@ class ProfilePage(QWidget):
         success, message = self.admin_delete_post_callback(post)
         self.show_message(message, "success" if success else "error")
         if success:
-            self.refresh_home_callback()
             self.render_ui()
 
 
@@ -2724,7 +2719,6 @@ class MainWindow(QWidget):
         save_follows(follows)
         save_notifications(notifications)
         save_groups(groups)
-        self.show_home()
 
     def create_interaction_notification(self, post, actor, action):
         author = post.get("author")
