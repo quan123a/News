@@ -613,7 +613,6 @@ class HomePage(QWidget):
         self.show_groups_callback = show_groups_callback
         self.show_message = show_message_callback
         self.toggle_notifications_callback = toggle_notifications_callback
-        self.active_category = "Tất cả"
 
         root_layout = QHBoxLayout(self)
         root_layout.setContentsMargins(18, 14, 18, 14)
@@ -669,18 +668,6 @@ class HomePage(QWidget):
                 }}
             """)
 
-        cat_title = QLabel("Chuyên mục")
-        cat_title.setStyleSheet("color:#1e293b; font-size:14px; font-weight:800;")
-
-        self.category_buttons = {}
-        for cat in ["Tất cả", "Thời sự", "Giải trí", "Sức khỏe", "Kinh doanh"]:
-            btn = QPushButton(cat)
-            btn.setFixedHeight(34)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.clicked.connect(lambda _, value=cat: self.select_category(value))
-            self.category_buttons[cat] = btn
-            side_layout.addWidget(btn)
-
         side_layout.insertWidget(0, app_name)
         side_layout.insertWidget(1, app_sub)
         side_layout.insertSpacing(2, 6)
@@ -689,7 +676,6 @@ class HomePage(QWidget):
         side_layout.insertWidget(5, self.btn_profile)
         side_layout.insertWidget(6, self.btn_groups)
         side_layout.insertSpacing(7, 8)
-        side_layout.insertWidget(8, cat_title)
         side_layout.addStretch()
 
         main_panel = QFrame()
@@ -745,44 +731,7 @@ class HomePage(QWidget):
         root_layout.addWidget(side_panel)
         root_layout.addWidget(main_panel, 1)
 
-        self.highlight_category_button()
         self.render_posts()
-
-    def select_category(self, category):
-        self.active_category = category
-        self.highlight_category_button()
-
-        mapping = {
-            "Tất cả": "",
-            "Thời sự": "tin",
-            "Giải trí": "giải trí",
-            "Sức khỏe": "sức khỏe",
-            "Kinh doanh": "kinh tế",
-        }
-        self.search_input.setText(mapping.get(category, ""))
-
-    def highlight_category_button(self):
-        for cat, btn in self.category_buttons.items():
-            active = cat == self.active_category
-            bg = "#4f46e5" if active else "#f8fafc"
-            fg = "white" if active else "#334155"
-            bd = "#4f46e5" if active else "#dbe3f0"
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {bg};
-                    color: {fg};
-                    border: 1px solid {bd};
-                    border-radius: 10px;
-                    text-align: left;
-                    padding: 0 10px;
-                    font-size: 13px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: #6366f1;
-                    color: white;
-                }}
-            """)
 
     def clear_posts(self):
         while self.container_layout.count():
@@ -3263,18 +3212,45 @@ class MainWindow(QWidget):
         )
         self.content_area.addWidget(self.home)
 
+    def show_page_with_back(self, page_widget):
+        self.clear_content()
+
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(10)
+
+        back_btn = QPushButton("← Quay lại Trang chủ")
+        back_btn.setFixedHeight(40)
+        back_btn.setFixedWidth(220)
+        back_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255,255,255,0.96);
+                color: #1e293b;
+                border: 1px solid #cbd5e1;
+                border-radius: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #eef2ff;
+            }
+        """)
+        back_btn.clicked.connect(self.show_home)
+
+        layout.addWidget(back_btn, 0, Qt.AlignLeft)
+        layout.addWidget(page_widget)
+        self.content_area.addWidget(container)
+
     def show_detail(self, post):
         self.clear_content()
         self.detail = DetailPage(post, self.show_home, self.get_current_user, self.save_all, self.get_followers_count, self.create_interaction_notification, self.get_user_avatar, self.show_inline_message)
         self.content_area.addWidget(self.detail)
 
     def show_create(self):
-        self.clear_content()
         self.create_page = CreatePage(self.show_home, self.get_current_user, self.show_inline_message, self.notify_new_post_activity)
-        self.content_area.addWidget(self.create_page)
+        self.show_page_with_back(self.create_page)
 
     def show_groups(self):
-        self.clear_content()
         self.group_page = GroupPage(
             self.get_current_user,
             self.show_inline_message,
@@ -3289,10 +3265,9 @@ class MainWindow(QWidget):
             self.create_group_post,
             self.delete_group_post,
         )
-        self.content_area.addWidget(self.group_page)
+        self.show_page_with_back(self.group_page)
 
     def show_profile(self):
-        self.clear_content()
         self.profile_page = ProfilePage(
             self.get_current_user,
             self.login_user,
@@ -3307,7 +3282,7 @@ class MainWindow(QWidget):
             self.admin_suspend_user,
             self.admin_delete_post
         )
-        self.content_area.addWidget(self.profile_page)
+        self.show_page_with_back(self.profile_page)
 
     def clear_content(self):
         for i in reversed(range(self.content_area.count())):
