@@ -1673,6 +1673,7 @@ class AuthGatePage(QWidget):
         root.setSpacing(20)
 
         intro = QFrame()
+        intro.setMinimumWidth(760)
         intro.setStyleSheet("""
             QFrame {
                 background-color: rgba(15,23,42,0.30);
@@ -1684,12 +1685,15 @@ class AuthGatePage(QWidget):
         intro_layout.setContentsMargins(24, 24, 24, 24)
 
         image_grid = QGridLayout()
-        image_grid.setSpacing(12)
+        image_grid.setContentsMargins(0, 0, 0, 0)
+        image_grid.setHorizontalSpacing(14)
+        image_grid.setVerticalSpacing(14)
 
         image_names = ["anh1.jpg", "anh2.jpg", "anh3.jpg", "anh4.jpg"]
         for idx, image_name in enumerate(image_names):
             image_label = QLabel()
-            image_label.setFixedSize(250, 150)
+            image_label.setMinimumSize(330, 215)
+            image_label.setSizePolicy(image_label.sizePolicy().Expanding, image_label.sizePolicy().Expanding)
             image_label.setAlignment(Qt.AlignCenter)
 
             pixmap = QPixmap(image_name)
@@ -1701,11 +1705,11 @@ class AuthGatePage(QWidget):
                     Qt.SmoothTransformation,
                 )
                 image_label.setPixmap(scaled)
-                image_label.setStyleSheet("border-radius: 10px; border: 1px solid rgba(255,255,255,0.35);")
+                image_label.setStyleSheet("border-radius: 12px; border: 3px solid white; background-color: white;")
             else:
                 image_label.setText(f"Không tìm thấy\n{image_name}")
                 image_label.setStyleSheet(
-                    "color: #e2e8f0; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.55);"
+                    "color: #e2e8f0; border-radius: 12px; border: 3px dashed rgba(255,255,255,0.9);"
                     "background-color: rgba(255,255,255,0.08); font-size: 12px;"
                 )
 
@@ -1789,7 +1793,7 @@ class AuthGatePage(QWidget):
         form_layout.addWidget(self.btn_register)
         form_layout.addStretch()
 
-        root.addWidget(intro, 1)
+        root.addWidget(intro, 2)
         root.addWidget(form)
 
     def handle_login(self):
