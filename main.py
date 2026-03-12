@@ -615,106 +615,135 @@ class HomePage(QWidget):
         self.toggle_notifications_callback = toggle_notifications_callback
         self.active_category = "Tất cả"
 
-        root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(24, 12, 24, 18)
-        root_layout.setSpacing(12)
+        root_layout = QHBoxLayout(self)
+        root_layout.setContentsMargins(18, 14, 18, 14)
+        root_layout.setSpacing(14)
 
-        header_card = QFrame()
-        header_card.setStyleSheet("""
+        side_panel = QFrame()
+        side_panel.setFixedWidth(250)
+        side_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.93);
+                border: 1px solid rgba(15,23,42,0.12);
+                border-radius: 14px;
+            }
+        """)
+        side_layout = QVBoxLayout(side_panel)
+        side_layout.setContentsMargins(14, 14, 14, 14)
+        side_layout.setSpacing(10)
+
+        app_name = QLabel("NovaNews")
+        app_name.setStyleSheet("color:#0f172a; font-size:22px; font-weight:900;")
+        app_sub = QLabel("Ứng dụng tin tức desktop")
+        app_sub.setStyleSheet("color:#475569; font-size:12px;")
+
+        self.btn_notify = QPushButton("🔔 Trung tâm thông báo")
+        self.btn_notify.clicked.connect(self.toggle_notifications_callback)
+        self.btn_create = QPushButton("✍️ Tạo bài mới")
+        self.btn_create.clicked.connect(self.show_create_callback)
+        self.btn_profile = QPushButton("👤 Hồ sơ cá nhân")
+        self.btn_profile.clicked.connect(self.show_profile_callback)
+        self.btn_groups = QPushButton("👥 Quản lý nhóm")
+        self.btn_groups.clicked.connect(self.show_groups_callback)
+
+        for btn, color in [
+            (self.btn_notify, "#4f46e5"),
+            (self.btn_create, "#0ea5e9"),
+            (self.btn_profile, "#10b981"),
+            (self.btn_groups, "#f59e0b"),
+        ]:
+            btn.setFixedHeight(42)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color};
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    text-align: left;
+                    padding: 0 12px;
+                    font-size: 13px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(15,23,42,0.78);
+                }}
+            """)
+
+        cat_title = QLabel("Chuyên mục")
+        cat_title.setStyleSheet("color:#1e293b; font-size:14px; font-weight:800;")
+
+        self.category_buttons = {}
+        for cat in ["Tất cả", "Thời sự", "Giải trí", "Sức khỏe", "Kinh doanh"]:
+            btn = QPushButton(cat)
+            btn.setFixedHeight(34)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda _, value=cat: self.select_category(value))
+            self.category_buttons[cat] = btn
+            side_layout.addWidget(btn)
+
+        side_layout.insertWidget(0, app_name)
+        side_layout.insertWidget(1, app_sub)
+        side_layout.insertSpacing(2, 6)
+        side_layout.insertWidget(3, self.btn_notify)
+        side_layout.insertWidget(4, self.btn_create)
+        side_layout.insertWidget(5, self.btn_profile)
+        side_layout.insertWidget(6, self.btn_groups)
+        side_layout.insertSpacing(7, 8)
+        side_layout.insertWidget(8, cat_title)
+        side_layout.addStretch()
+
+        main_panel = QFrame()
+        main_panel.setStyleSheet("""
             QFrame {
                 background-color: rgba(255,255,255,0.95);
-                border-radius: 16px;
-                border: 1px solid rgba(15,23,42,0.08);
+                border: 1px solid rgba(15,23,42,0.10);
+                border-radius: 14px;
             }
         """)
-        header_layout = QVBoxLayout(header_card)
-        header_layout.setContentsMargins(18, 16, 18, 16)
-        header_layout.setSpacing(10)
+        main_layout = QVBoxLayout(main_panel)
+        main_layout.setContentsMargins(16, 14, 16, 14)
+        main_layout.setSpacing(10)
 
-        top_row = QHBoxLayout()
-        brand = QLabel("📰 NovaNews Desktop")
-        brand.setStyleSheet("color: #0f172a; font-size: 24px; font-weight: 900;")
+        top_bar = QHBoxLayout()
+        title = QLabel("Bảng tin hôm nay")
+        title.setStyleSheet("color:#0f172a; font-size:24px; font-weight:900;")
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Tìm tin theo tiêu đề hoặc nội dung...")
-        self.search_input.setFixedHeight(40)
-        self.search_input.setMinimumWidth(360)
+        self.search_input.setPlaceholderText("Tìm theo tiêu đề hoặc nội dung...")
+        self.search_input.setFixedHeight(38)
+        self.search_input.setMinimumWidth(380)
+        self.search_input.textChanged.connect(self.filter_posts)
         self.search_input.setStyleSheet("""
             QLineEdit {
-                border: 1px solid #dbe3f0;
-                border-radius: 20px;
-                padding: 0 14px;
-                font-size: 14px;
                 background-color: #f8fafc;
+                border: 1px solid #cbd5e1;
+                border-radius: 10px;
+                padding: 0 12px;
                 color: #0f172a;
-            }
-            QLineEdit:focus {
-                border: 2px solid #4f46e5;
-                background-color: white;
-            }
-        """)
-        self.search_input.textChanged.connect(self.filter_posts)
-
-        self.btn_bell = QPushButton("🔔 Thông báo")
-        self.btn_bell.setFixedHeight(40)
-        self.btn_bell.setStyleSheet("""
-            QPushButton {
-                background-color: #eef2ff;
-                color: #312e81;
-                border: 1px solid #c7d2fe;
-                border-radius: 20px;
-                padding: 0 14px;
                 font-size: 13px;
-                font-weight: bold;
             }
-            QPushButton:hover {
-                background-color: #e0e7ff;
-            }
+            QLineEdit:focus { border: 2px solid #4f46e5; }
         """)
-        self.btn_bell.clicked.connect(self.toggle_notifications_callback)
 
-        top_row.addWidget(brand)
-        top_row.addStretch()
-        top_row.addWidget(self.search_input)
-        top_row.addWidget(self.btn_bell)
-
-        category_row = QHBoxLayout()
-        category_row.setSpacing(8)
-        self.category_buttons = {}
-        for cat in ["Tất cả", "Thời sự", "Giải trí", "Sức khỏe", "Kinh doanh", "Nhóm"]:
-            btn = QPushButton(cat)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setFixedHeight(34)
-            btn.clicked.connect(lambda _, value=cat: self.select_category(value))
-            category_row.addWidget(btn)
-            self.category_buttons[cat] = btn
-        category_row.addStretch()
-
-        self.btn_new_post = QPushButton("✍️ Tạo bài mới")
-        self.btn_new_post.setFixedHeight(34)
-        self.btn_new_post.clicked.connect(self.show_create_callback)
-        category_row.addWidget(self.btn_new_post)
-
-        self.btn_profile = QPushButton("👤 Hồ sơ")
-        self.btn_profile.setFixedHeight(34)
-        self.btn_profile.clicked.connect(self.show_profile_callback)
-        category_row.addWidget(self.btn_profile)
-
-        header_layout.addLayout(top_row)
-        header_layout.addLayout(category_row)
+        top_bar.addWidget(title)
+        top_bar.addStretch()
+        top_bar.addWidget(self.search_input)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("border: none;")
+        self.scroll.setStyleSheet("border: none; background: transparent;")
 
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
-        self.container_layout.setContentsMargins(0, 4, 0, 4)
+        self.container_layout.setContentsMargins(0, 0, 0, 0)
         self.container_layout.setSpacing(10)
         self.scroll.setWidget(self.container)
 
-        root_layout.addWidget(header_card)
-        root_layout.addWidget(self.scroll)
+        main_layout.addLayout(top_bar)
+        main_layout.addWidget(self.scroll)
+
+        root_layout.addWidget(side_panel)
+        root_layout.addWidget(main_panel, 1)
 
         self.highlight_category_button()
         self.render_posts()
@@ -722,9 +751,6 @@ class HomePage(QWidget):
     def select_category(self, category):
         self.active_category = category
         self.highlight_category_button()
-        if category == "Nhóm":
-            self.show_groups_callback()
-            return
 
         mapping = {
             "Tất cả": "",
@@ -738,7 +764,7 @@ class HomePage(QWidget):
     def highlight_category_button(self):
         for cat, btn in self.category_buttons.items():
             active = cat == self.active_category
-            bg = "#4f46e5" if active else "#f1f5f9"
+            bg = "#4f46e5" if active else "#f8fafc"
             fg = "white" if active else "#334155"
             bd = "#4f46e5" if active else "#dbe3f0"
             btn.setStyleSheet(f"""
@@ -746,8 +772,9 @@ class HomePage(QWidget):
                     background-color: {bg};
                     color: {fg};
                     border: 1px solid {bd};
-                    border-radius: 17px;
-                    padding: 0 14px;
+                    border-radius: 10px;
+                    text-align: left;
+                    padding: 0 10px;
                     font-size: 13px;
                     font-weight: bold;
                 }}
@@ -755,22 +782,6 @@ class HomePage(QWidget):
                     background-color: #6366f1;
                     color: white;
                 }}
-            """)
-
-        for btn in [self.btn_new_post, self.btn_profile]:
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #0ea5e9;
-                    color: white;
-                    border: 1px solid #0284c7;
-                    border-radius: 17px;
-                    padding: 0 14px;
-                    font-size: 13px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #0284c7;
-                }
             """)
 
     def clear_posts(self):
@@ -789,6 +800,7 @@ class HomePage(QWidget):
             if not normalized_keyword:
                 filtered_posts.append(post)
                 continue
+
             title_match = normalized_keyword in post.get("title", "").lower()
             content_match = normalized_keyword in post.get("content", "").lower()
             if title_match or content_match:
@@ -807,7 +819,7 @@ class HomePage(QWidget):
         if not filtered_posts:
             empty_label = QLabel("Không tìm thấy bài viết phù hợp.")
             empty_label.setAlignment(Qt.AlignCenter)
-            empty_label.setStyleSheet("color: #475569; font-size: 15px; padding: 26px;")
+            empty_label.setStyleSheet("color: #475569; font-size: 14px; padding: 20px;")
             self.container_layout.addWidget(empty_label)
 
         self.container_layout.addStretch()
@@ -1693,53 +1705,45 @@ class AuthGatePage(QWidget):
         self.register_callback = register_callback
         self.show_message = show_message_callback
 
-        root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 0, 0, 0)
+        root = QHBoxLayout(self)
+        root.setContentsMargins(40, 30, 40, 30)
+        root.setSpacing(20)
 
-        card = QFrame()
-        card.setStyleSheet("""
+        intro = QFrame()
+        intro.setStyleSheet("""
             QFrame {
-                background-color: white;
-                border-radius: 28px;
-                border: 1px solid rgba(255,255,255,0.25);
+                background-color: rgba(15,23,42,0.30);
+                border: 1px solid rgba(255,255,255,0.35);
+                border-radius: 16px;
             }
         """)
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(0, 0, 0, 30)
-        card_layout.setSpacing(20)
+        intro_layout = QVBoxLayout(intro)
+        intro_layout.setContentsMargins(24, 24, 24, 24)
 
-        header = QFrame()
-        header.setFixedHeight(220)
-        header.setStyleSheet("""
+        intro_title = QLabel("NovaNews Desktop")
+        intro_title.setStyleSheet("color: white; font-size: 34px; font-weight: 900;")
+        intro_text = QLabel("Đăng nhập để mở toàn bộ tính năng quản lý bài viết, nhóm và thông báo.")
+        intro_text.setWordWrap(True)
+        intro_text.setStyleSheet("color: #e2e8f0; font-size: 14px;")
+        intro_layout.addWidget(intro_title)
+        intro_layout.addWidget(intro_text)
+        intro_layout.addStretch()
+
+        form = QFrame()
+        form.setFixedWidth(420)
+        form.setStyleSheet("""
             QFrame {
-                border-top-left-radius: 28px;
-                border-top-right-radius: 28px;
-                border-bottom-left-radius: 90px;
-                border-bottom-right-radius: 90px;
-                background: qlineargradient(
-                    spread:pad, x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #6d28d9,
-                    stop:1 #0ea5e9
-                );
+                background-color: rgba(255,255,255,0.96);
+                border-radius: 16px;
+                border: 1px solid rgba(15,23,42,0.10);
             }
         """)
-        header_layout = QVBoxLayout(header)
-        header_layout.setContentsMargins(24, 24, 24, 24)
-        logo = QLabel("MOFINOW")
-        logo.setAlignment(Qt.AlignCenter)
-        logo.setStyleSheet("color: white; font-size: 46px; font-weight: 900;")
-        brand = QLabel("Welcome !")
-        brand.setAlignment(Qt.AlignCenter)
-        brand.setStyleSheet("color: white; font-size: 21px; font-weight: bold;")
-        header_layout.addStretch()
-        header_layout.addWidget(logo)
-        header_layout.addWidget(brand)
-        header_layout.addStretch()
+        form_layout = QVBoxLayout(form)
+        form_layout.setContentsMargins(24, 24, 24, 24)
+        form_layout.setSpacing(10)
 
-        body = QFrame()
-        body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(34, 6, 34, 0)
-        body_layout.setSpacing(12)
+        title = QLabel("Đăng nhập hệ thống")
+        title.setStyleSheet("color:#0f172a; font-size:24px; font-weight:800;")
 
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Tên đăng nhập")
@@ -1748,91 +1752,58 @@ class AuthGatePage(QWidget):
         self.password_input.setEchoMode(QLineEdit.Password)
 
         for field in [self.username_input, self.password_input]:
-            field.setFixedHeight(48)
+            field.setFixedHeight(42)
             field.setStyleSheet("""
                 QLineEdit {
-                    border-radius: 24px;
-                    border: 1px solid #c7d2fe;
-                    padding: 0 16px;
-                    font-size: 14px;
                     background-color: #f8fafc;
+                    color: #0f172a;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 10px;
+                    padding: 0 12px;
                 }
-                QLineEdit:focus {
-                    border: 2px solid #7c3aed;
-                    background-color: #ffffff;
-                }
+                QLineEdit:focus { border: 2px solid #4f46e5; }
             """)
 
-        self.btn_register = QPushButton("Create Account")
-        self.btn_login = QPushButton("Login")
+        self.btn_login = QPushButton("Đăng nhập")
+        self.btn_register = QPushButton("Tạo tài khoản")
+        self.btn_login.setFixedHeight(42)
+        self.btn_register.setFixedHeight(42)
 
-        self.btn_register.setFixedHeight(50)
-        self.btn_register.setStyleSheet("""
-            QPushButton {
-                color: white;
-                font-size: 15px;
-                font-weight: bold;
-                border-radius: 25px;
-                border: none;
-                background: qlineargradient(
-                    spread:pad, x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #6d28d9,
-                    stop:1 #0ea5e9
-                );
-            }
-            QPushButton:hover {
-                background-color: #5b21b6;
-            }
-        """)
-
-        self.btn_login.setFixedHeight(50)
         self.btn_login.setStyleSheet("""
             QPushButton {
-                color: #4f46e5;
-                font-size: 15px;
+                background-color: #4f46e5;
+                color: white;
+                border-radius: 10px;
                 font-weight: bold;
-                border-radius: 25px;
-                border: 2px solid #7dd3fc;
-                background-color: white;
+                border: none;
             }
-            QPushButton:hover {
-                background-color: #f8fbff;
-            }
+            QPushButton:hover { background-color: #4338ca; }
         """)
-
-        socials = QLabel("🐦   in   f   G")
-        socials.setAlignment(Qt.AlignCenter)
-        socials.setStyleSheet("color: #4f46e5; font-size: 18px; font-weight: bold;")
-
-        social_hint = QLabel("Sign in with another account")
-        social_hint.setAlignment(Qt.AlignCenter)
-        social_hint.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        self.btn_register.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: #334155;
+                border-radius: 10px;
+                border: 1px solid #cbd5e1;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #f8fafc; }
+        """)
 
         self.btn_login.clicked.connect(self.handle_login)
         self.btn_register.clicked.connect(self.handle_register)
         self.password_input.returnPressed.connect(self.handle_login)
 
-        body_layout.addWidget(self.username_input)
-        body_layout.addWidget(self.password_input)
-        body_layout.addWidget(self.btn_register)
-        body_layout.addWidget(self.btn_login)
-        body_layout.addSpacing(8)
-        body_layout.addWidget(socials)
-        body_layout.addWidget(social_hint)
+        form_layout.addWidget(title)
+        form_layout.addSpacing(4)
+        form_layout.addWidget(self.username_input)
+        form_layout.addWidget(self.password_input)
+        form_layout.addWidget(self.btn_login)
+        form_layout.addWidget(self.btn_register)
+        form_layout.addStretch()
 
-        card_layout.addWidget(header)
-        card_layout.addWidget(body)
-
-        wrapper = QHBoxLayout()
-        wrapper.addStretch()
-        wrapper.addWidget(card)
-        wrapper.addStretch()
-
-        root_layout.addStretch()
-        root_layout.addLayout(wrapper)
-        root_layout.addStretch()
-
-        card.setMaximumWidth(420)
+        root.addWidget(intro, 1)
+        root.addWidget(form)
 
     def handle_login(self):
         username = self.username_input.text().strip()
