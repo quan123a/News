@@ -621,11 +621,13 @@ class HomePage(QWidget):
         self.get_user_avatar_callback = get_user_avatar_callback
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
 
-        title = QLabel("📰 Trang chủ - Danh sách bài viết")
-        title.setFont(QFont("Arial", 24, QFont.Bold))
+        title = QLabel("📰 Trang chủ")
+        title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: white; padding: 20px;")
+        title.setStyleSheet("color: white; padding: 8px 4px;")
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔎 Tìm theo tiêu đề hoặc nội dung...")
@@ -637,7 +639,7 @@ class HomePage(QWidget):
                 padding: 0 14px;
                 font-size: 13px;
                 border: 1px solid rgba(0,0,0,0.1);
-                margin: 0 20px 10px 20px;
+                margin: 0 4px 8px 4px;
             }
             QLineEdit:focus {
                 border: 2px solid #4e73df;
@@ -718,13 +720,13 @@ class DetailPage(QWidget):
 
         container = QWidget()
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(150, 30, 150, 30)
-        layout.setSpacing(14)
+        layout.setContentsMargins(12, 12, 12, 18)
+        layout.setSpacing(12)
 
         back_btn = QPushButton("← Quay lại")
         back_btn.clicked.connect(back_callback)
-        back_btn.setFixedWidth(190)
-        back_btn.setFixedHeight(46)
+        back_btn.setFixedWidth(140)
+        back_btn.setFixedHeight(40)
         back_btn.setStyleSheet("""
             QPushButton {
                 background-color: rgba(255, 255, 255, 0.94);
@@ -745,7 +747,7 @@ class DetailPage(QWidget):
         """)
 
         title = QLabel(post["title"])
-        title.setFont(QFont("Arial", 28, QFont.Bold))
+        title.setFont(QFont("Arial", 21, QFont.Bold))
         title.setStyleSheet("color: white;")
         title.setWordWrap(True)
 
@@ -951,11 +953,11 @@ class CreatePage(QWidget):
         self.selected_image = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(300, 50, 300, 50)
-        layout.setSpacing(20)
+        layout.setContentsMargins(12, 12, 12, 18)
+        layout.setSpacing(14)
 
         title_label = QLabel("✍ Tạo bài viết mới")
-        title_label.setFont(QFont("Arial", 26, QFont.Bold))
+        title_label.setFont(QFont("Arial", 20, QFont.Bold))
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("""
             color: white;
@@ -1156,7 +1158,7 @@ class GroupPage(QWidget):
 
         self.content = QWidget()
         self.layout = QVBoxLayout(self.content)
-        self.layout.setContentsMargins(140, 30, 140, 30)
+        self.layout.setContentsMargins(10, 12, 10, 18)
         self.layout.setSpacing(14)
 
         self.scroll.setWidget(self.content)
@@ -1182,7 +1184,7 @@ class GroupPage(QWidget):
                 widget.deleteLater()
 
         title = QLabel("👥 Nhóm riêng")
-        title.setFont(QFont("Arial", 24, QFont.Bold))
+        title.setFont(QFont("Arial", 19, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:white;")
         self.layout.addWidget(title)
@@ -1611,8 +1613,8 @@ class ProfilePage(QWidget):
 
         self.profile_content = QWidget()
         self.layout = QVBoxLayout(self.profile_content)
-        self.layout.setContentsMargins(170, 35, 170, 35)
-        self.layout.setSpacing(15)
+        self.layout.setContentsMargins(10, 12, 10, 18)
+        self.layout.setSpacing(12)
 
         self.profile_scroll.setWidget(self.profile_content)
         self.root_layout.addWidget(self.profile_scroll)
@@ -1622,8 +1624,8 @@ class ProfilePage(QWidget):
     def render_ui(self):
         self.clear_layout()
 
-        title = QLabel("👤 Trang hồ sơ người dùng")
-        title.setFont(QFont("Arial", 24, QFont.Bold))
+        title = QLabel("👤 Hồ sơ người dùng")
+        title.setFont(QFont("Arial", 19, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: white;")
         self.layout.addWidget(title)
@@ -2157,24 +2159,35 @@ class MainWindow(QWidget):
 
         self.current_user = None
 
-        self.setWindowTitle("NovaNews Desktop")
-        self.resize(1200, 800)
+        self.setWindowTitle("NovaNews App")
+        self.resize(480, 860)
+        self.setMinimumSize(430, 760)
+        self.setObjectName("AppShell")
+        self.setStyleSheet("""
+            QWidget#AppShell {
+                background-color: #0f172a;
+                border-radius: 22px;
+            }
+        """)
 
         self.main_layout = QVBoxLayout(self)
 
-        self.app_title = QLabel("📰 NovaNews Desktop")
-        self.app_title.setFont(QFont("Arial", 32, QFont.Bold))
+        self.app_title = QLabel("📰 NovaNews")
+        self.app_title.setFont(QFont("Arial", 24, QFont.Bold))
         self.app_title.setAlignment(Qt.AlignCenter)
         self.app_title.setStyleSheet("""
             color: white;
-            padding: 20px;
+            padding: 8px 0 12px 0;
             letter-spacing: 2px;
         """)
 
         self.main_layout.addWidget(self.app_title)
+        self.main_layout.setContentsMargins(14, 14, 14, 14)
+        self.main_layout.setSpacing(10)
 
         menu_layout = QHBoxLayout()
-        menu_layout.setSpacing(25)
+        menu_layout.setSpacing(8)
+        menu_layout.setContentsMargins(0, 0, 0, 2)
         menu_layout.setAlignment(Qt.AlignCenter)
 
         self.btn_home = QPushButton("Trang chủ")
@@ -2183,14 +2196,14 @@ class MainWindow(QWidget):
         self.btn_groups = QPushButton("Nhóm")
 
         for btn in [self.btn_home, self.btn_create, self.btn_profile, self.btn_groups]:
-            btn.setFixedSize(200, 55)
-            btn.setFont(QFont("Arial", 14, QFont.Bold))
+            btn.setFixedSize(92, 46)
+            btn.setFont(QFont("Arial", 11, QFont.Bold))
             btn.setStyleSheet("""
                 QPushButton {
-                    background-color: rgba(255,255,255,0.96);
-                    border-radius: 27px;
+                    background-color: rgba(255,255,255,0.93);
+                    border-radius: 16px;
                     border: 1px solid rgba(0,0,0,0.1);
-                    padding: 0 18px;
+                    padding: 0 10px;
                 }
                 QPushButton:hover {
                     background-color: #dbe4ff;
@@ -2201,12 +2214,12 @@ class MainWindow(QWidget):
             """)
 
         self.btn_notify = QPushButton("🔔")
-        self.btn_notify.setFixedSize(70, 55)
-        self.btn_notify.setFont(QFont("Arial", 18, QFont.Bold))
+        self.btn_notify.setFixedSize(48, 46)
+        self.btn_notify.setFont(QFont("Arial", 14, QFont.Bold))
         self.btn_notify.setStyleSheet("""
             QPushButton {
                 background-color: rgba(255,255,255,0.96);
-                border-radius: 27px;
+                border-radius: 16px;
                 border: 1px solid rgba(0,0,0,0.1);
             }
             QPushButton:hover {
@@ -2255,7 +2268,7 @@ class MainWindow(QWidget):
                 background-color: rgba(0,0,0,0.32);
                 border: 1px solid rgba(255,255,255,0.35);
                 border-radius: 14px;
-                margin: 5px 90px;
+                margin: 4px 0;
             }
         """)
 
@@ -3018,15 +3031,5 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     window = MainWindow()
-    window.setStyleSheet("""
-        QWidget {
-            background: qlineargradient(
-                spread:pad, x1:0, y1:0, x2:1, y2:1,
-                stop:0 #4e73df,
-                stop:1 #1cc88a
-            );
-        }
-    """)
-
     window.show()
     sys.exit(app.exec_())
