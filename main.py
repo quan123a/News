@@ -1570,6 +1570,179 @@ class StableDurationComboBox(QComboBox):
         super().wheelEvent(event)
 
 
+class AuthGatePage(QWidget):
+    def __init__(self, login_callback, register_callback, show_message_callback):
+        super().__init__()
+        self.login_callback = login_callback
+        self.register_callback = register_callback
+        self.show_message = show_message_callback
+
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+
+        card = QFrame()
+        card.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 28px;
+                border: 1px solid rgba(255,255,255,0.25);
+            }
+        """)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(0, 0, 0, 30)
+        card_layout.setSpacing(20)
+
+        header = QFrame()
+        header.setFixedHeight(220)
+        header.setStyleSheet("""
+            QFrame {
+                border-top-left-radius: 28px;
+                border-top-right-radius: 28px;
+                border-bottom-left-radius: 90px;
+                border-bottom-right-radius: 90px;
+                background: qlineargradient(
+                    spread:pad, x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #6d28d9,
+                    stop:1 #0ea5e9
+                );
+            }
+        """)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(24, 24, 24, 24)
+        logo = QLabel("MOFINOW")
+        logo.setAlignment(Qt.AlignCenter)
+        logo.setStyleSheet("color: white; font-size: 46px; font-weight: 900;")
+        brand = QLabel("Welcome !")
+        brand.setAlignment(Qt.AlignCenter)
+        brand.setStyleSheet("color: white; font-size: 21px; font-weight: bold;")
+        header_layout.addStretch()
+        header_layout.addWidget(logo)
+        header_layout.addWidget(brand)
+        header_layout.addStretch()
+
+        body = QFrame()
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(34, 6, 34, 0)
+        body_layout.setSpacing(12)
+
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("Tên đăng nhập")
+        self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Mật khẩu")
+        self.password_input.setEchoMode(QLineEdit.Password)
+
+        for field in [self.username_input, self.password_input]:
+            field.setFixedHeight(48)
+            field.setStyleSheet("""
+                QLineEdit {
+                    border-radius: 24px;
+                    border: 1px solid #c7d2fe;
+                    padding: 0 16px;
+                    font-size: 14px;
+                    background-color: #f8fafc;
+                }
+                QLineEdit:focus {
+                    border: 2px solid #7c3aed;
+                    background-color: #ffffff;
+                }
+            """)
+
+        self.btn_register = QPushButton("Create Account")
+        self.btn_login = QPushButton("Login")
+
+        self.btn_register.setFixedHeight(50)
+        self.btn_register.setStyleSheet("""
+            QPushButton {
+                color: white;
+                font-size: 15px;
+                font-weight: bold;
+                border-radius: 25px;
+                border: none;
+                background: qlineargradient(
+                    spread:pad, x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #6d28d9,
+                    stop:1 #0ea5e9
+                );
+            }
+            QPushButton:hover {
+                background-color: #5b21b6;
+            }
+        """)
+
+        self.btn_login.setFixedHeight(50)
+        self.btn_login.setStyleSheet("""
+            QPushButton {
+                color: #4f46e5;
+                font-size: 15px;
+                font-weight: bold;
+                border-radius: 25px;
+                border: 2px solid #7dd3fc;
+                background-color: white;
+            }
+            QPushButton:hover {
+                background-color: #f8fbff;
+            }
+        """)
+
+        socials = QLabel("🐦   in   f   G")
+        socials.setAlignment(Qt.AlignCenter)
+        socials.setStyleSheet("color: #4f46e5; font-size: 18px; font-weight: bold;")
+
+        social_hint = QLabel("Sign in with another account")
+        social_hint.setAlignment(Qt.AlignCenter)
+        social_hint.setStyleSheet("color: #94a3b8; font-size: 12px;")
+
+        self.btn_login.clicked.connect(self.handle_login)
+        self.btn_register.clicked.connect(self.handle_register)
+        self.password_input.returnPressed.connect(self.handle_login)
+
+        body_layout.addWidget(self.username_input)
+        body_layout.addWidget(self.password_input)
+        body_layout.addWidget(self.btn_register)
+        body_layout.addWidget(self.btn_login)
+        body_layout.addSpacing(8)
+        body_layout.addWidget(socials)
+        body_layout.addWidget(social_hint)
+
+        card_layout.addWidget(header)
+        card_layout.addWidget(body)
+
+        wrapper = QHBoxLayout()
+        wrapper.addStretch()
+        wrapper.addWidget(card)
+        wrapper.addStretch()
+
+        root_layout.addStretch()
+        root_layout.addLayout(wrapper)
+        root_layout.addStretch()
+
+        card.setMaximumWidth(420)
+
+    def handle_login(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+        success, message, lock_notice = self.login_callback(username, password)
+        if success:
+            self.show_message(message, "success")
+            self.clear_inputs()
+        else:
+            self.show_message(lock_notice or message, "warning")
+
+    def handle_register(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+        success, message = self.register_callback(username, password)
+        if success:
+            self.show_message(message, "success")
+            self.clear_inputs()
+        else:
+            self.show_message(message, "warning")
+
+    def clear_inputs(self):
+        self.username_input.clear()
+        self.password_input.clear()
+
+
 class ProfilePage(QWidget):
     def __init__(
         self,
@@ -2173,7 +2346,10 @@ class MainWindow(QWidget):
 
         self.main_layout.addWidget(self.app_title)
 
-        menu_layout = QHBoxLayout()
+        self.menu_bar = QFrame()
+        self.menu_bar.setStyleSheet("background: transparent;")
+        menu_layout = QHBoxLayout(self.menu_bar)
+        menu_layout.setContentsMargins(0, 0, 0, 0)
         menu_layout.setSpacing(25)
         menu_layout.setAlignment(Qt.AlignCenter)
 
@@ -2246,7 +2422,7 @@ class MainWindow(QWidget):
         menu_layout.addWidget(self.btn_groups)
         menu_layout.addWidget(notify_wrapper)
 
-        self.main_layout.addLayout(menu_layout)
+        self.main_layout.addWidget(self.menu_bar)
 
         self.notification_panel = QFrame()
         self.notification_panel.setVisible(False)
@@ -2328,8 +2504,28 @@ class MainWindow(QWidget):
 
         self.toast = InlineToast(self)
 
-        self.show_home()
+        self.update_auth_state()
         self.update_notification_badge()
+
+    def update_auth_state(self):
+        logged_in = bool(self.current_user)
+        self.menu_bar.setVisible(logged_in)
+        self.notification_panel.setVisible(False)
+        self.notify_badge.setVisible(logged_in)
+
+        if logged_in:
+            self.show_home()
+        else:
+            self.show_auth_gate()
+
+    def show_auth_gate(self):
+        self.clear_content()
+        self.auth_gate_page = AuthGatePage(
+            self.login_user,
+            self.register_user,
+            self.show_inline_message,
+        )
+        self.content_area.addWidget(self.auth_gate_page)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -2423,6 +2619,7 @@ class MainWindow(QWidget):
         save_notifications(notifications)
         self.update_notification_badge()
         self.render_notifications()
+        self.update_auth_state()
         return True, "Đăng nhập thành công!", ""
 
     def register_user(self, username, password):
@@ -2450,12 +2647,14 @@ class MainWindow(QWidget):
         self.current_user = username
         self.update_notification_badge()
         self.render_notifications()
+        self.update_auth_state()
         return True, "Đăng ký thành công và đã đăng nhập!"
 
     def logout_user(self):
         self.current_user = None
         self.update_notification_badge()
         self.render_notifications()
+        self.update_auth_state()
 
     def save_all(self):
         save_posts(posts)
