@@ -2599,7 +2599,7 @@ class MainWindow(QWidget):
 
     def update_auth_state(self):
         logged_in = bool(self.current_user)
-        self.menu_bar.setVisible(logged_in)
+        self.menu_bar.setVisible(False)
         self.notification_panel.setVisible(False)
         self.notify_badge.setVisible(False)
         self.btn_notify.setVisible(False)
