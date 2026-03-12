@@ -138,7 +138,7 @@ class InlineToast(QFrame):
         self.timer.timeout.connect(self.hide)
         self.hide()
 
-    def show_message(self, text, level="info", timeout=2000):
+    def show_message(self, text, level="info", timeout=4500):
         icon_map = {
             "success": "✅",
             "warning": "⚠️",
@@ -602,6 +602,7 @@ class HomePage(QWidget):
         show_create_callback,
         show_groups_callback,
         show_message_callback,
+        toggle_notifications_callback,
     ):
         super().__init__()
         self.open_detail_callback = open_detail_callback
@@ -611,6 +612,7 @@ class HomePage(QWidget):
         self.show_create_callback = show_create_callback
         self.show_groups_callback = show_groups_callback
         self.show_message = show_message_callback
+        self.toggle_notifications_callback = toggle_notifications_callback
         self.active_category = "All"
 
         root_layout = QVBoxLayout(self)
@@ -745,7 +747,7 @@ class HomePage(QWidget):
         root_layout.addLayout(row)
 
         self.btn_search.clicked.connect(self.focus_search)
-        self.btn_bell.clicked.connect(lambda: self.show_message("Thông báo hiện có trong trang Hồ sơ/chi tiết bài viết.", "info"))
+        self.btn_bell.clicked.connect(self.toggle_notifications_callback)
         self.btn_tab_home.clicked.connect(self.reset_home_feed)
         self.btn_tab_top.clicked.connect(self.show_create_callback)
         self.btn_tab_profile.clicked.connect(self.show_profile_callback)
@@ -2573,12 +2575,13 @@ class MainWindow(QWidget):
 
         self.notification_panel = QFrame()
         self.notification_panel.setVisible(False)
+        self.notification_panel.setMinimumHeight(360)
         self.notification_panel.setStyleSheet("""
             QFrame {
-                background-color: rgba(0,0,0,0.32);
-                border: 1px solid rgba(255,255,255,0.35);
-                border-radius: 14px;
-                margin: 5px 90px;
+                background-color: rgba(15,23,42,0.92);
+                border: 1px solid rgba(255,255,255,0.45);
+                border-radius: 18px;
+                margin: 8px 24px;
             }
         """)
 
@@ -2632,6 +2635,7 @@ class MainWindow(QWidget):
         action_row.addStretch()
 
         self.notification_scroll = QScrollArea()
+        self.notification_scroll.setMinimumHeight(260)
         self.notification_scroll.setWidgetResizable(True)
         self.notification_scroll.setStyleSheet("border: none;")
 
@@ -2681,7 +2685,7 @@ class MainWindow(QWidget):
         if self.toast.isVisible():
             self.toast.show_message(self.toast.text_label.text(), "info", max(1, self.toast.timer.remainingTime()))
 
-    def show_inline_message(self, text, level="info", timeout=2000):
+    def show_inline_message(self, text, level="info", timeout=4500):
         self.toast.show_message(text, level, timeout)
 
     def get_current_user(self):
@@ -2881,9 +2885,11 @@ class MainWindow(QWidget):
         self.notify_badge.setVisible(unread_count > 0)
 
     def toggle_notification_panel(self):
-        self.notification_panel.setVisible(not self.notification_panel.isVisible())
-        if self.notification_panel.isVisible():
+        should_show = not self.notification_panel.isVisible()
+        self.notification_panel.setVisible(should_show)
+        if should_show:
             self.render_notifications()
+            self.notification_panel.raise_()
 
     def clear_notification_widgets(self):
         while self.notification_layout.count():
@@ -2930,11 +2936,11 @@ class MainWindow(QWidget):
                 label.setStyleSheet("color: white;")
 
                 open_btn = QPushButton("Mở")
-                open_btn.setFixedWidth(70)
+                open_btn.setFixedWidth(92)
                 open_btn.clicked.connect(lambda _, n=item: self.open_notification(n))
 
                 remove_btn = QPushButton("Xóa")
-                remove_btn.setFixedWidth(70)
+                remove_btn.setFixedWidth(92)
                 remove_btn.clicked.connect(lambda _, n=item: self.delete_notification(n))
 
                 row_layout.addWidget(label, 1)
@@ -3314,6 +3320,7 @@ class MainWindow(QWidget):
             self.show_create,
             self.show_groups,
             self.show_inline_message,
+            self.toggle_notification_panel,
         )
         self.content_area.addWidget(self.home)
 
@@ -3381,6 +3388,17 @@ if __name__ == "__main__":
                 stop:0 #4e73df,
                 stop:1 #1cc88a
             );
+        }
+        QPushButton {
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            opacity: 0.92;
+        }
+        QLineEdit, QTextEdit {
+            border-radius: 12px;
         }
     """)
 
