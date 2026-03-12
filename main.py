@@ -1942,6 +1942,7 @@ class ProfilePage(QWidget):
         show_message_callback,
         admin_suspend_callback,
         admin_delete_post_callback,
+        change_password_callback,
         back_callback,
     ):
         super().__init__()
@@ -1957,6 +1958,7 @@ class ProfilePage(QWidget):
         self.show_message = show_message_callback
         self.admin_suspend_callback = admin_suspend_callback
         self.admin_delete_post_callback = admin_delete_post_callback
+        self.change_password_callback = change_password_callback
         self.back_callback = back_callback
         self.editing_post = None
         self.delete_pending_post_id = None
@@ -2160,6 +2162,73 @@ class ProfilePage(QWidget):
             welcome_layout.addLayout(action_row)
 
             self.layout.addWidget(welcome_card)
+
+            password_card = QFrame()
+            password_card.setStyleSheet("""
+                QFrame {
+                    background-color: rgba(0,0,0,0.24);
+                    border-radius: 16px;
+                    border: 1px solid rgba(255,255,255,0.35);
+                    padding: 12px;
+                }
+            """)
+            password_layout = QVBoxLayout(password_card)
+            password_layout.setSpacing(10)
+
+            password_title = QLabel("🔐 Đổi mật khẩu")
+            password_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+
+            self.current_password_input = QLineEdit()
+            self.current_password_input.setPlaceholderText("Mật khẩu hiện tại")
+            self.current_password_input.setEchoMode(QLineEdit.Password)
+
+            self.new_password_input = QLineEdit()
+            self.new_password_input.setPlaceholderText("Mật khẩu mới")
+            self.new_password_input.setEchoMode(QLineEdit.Password)
+
+            self.confirm_new_password_input = QLineEdit()
+            self.confirm_new_password_input.setPlaceholderText("Xác nhận mật khẩu mới")
+            self.confirm_new_password_input.setEchoMode(QLineEdit.Password)
+
+            for widget in [self.current_password_input, self.new_password_input, self.confirm_new_password_input]:
+                widget.setFixedHeight(40)
+                widget.setStyleSheet("""
+                    QLineEdit {
+                        background-color: rgba(255,255,255,0.95);
+                        border-radius: 20px;
+                        padding: 0 14px;
+                        border: 1px solid rgba(255,255,255,0.30);
+                        font-size: 13px;
+                    }
+                    QLineEdit:focus {
+                        border: 2px solid #8fb0ff;
+                    }
+                """)
+
+            btn_change_password = QPushButton("Cập nhật mật khẩu")
+            btn_change_password.setFixedHeight(40)
+            btn_change_password.setStyleSheet("""
+                QPushButton {
+                    background-color: #4e73df;
+                    color: white;
+                    border-radius: 20px;
+                    font-weight: bold;
+                    border: 1px solid rgba(255,255,255,0.35);
+                    padding: 0 14px;
+                }
+                QPushButton:hover {
+                    background-color: #3555ad;
+                }
+            """)
+            btn_change_password.clicked.connect(self.handle_change_password)
+
+            password_layout.addWidget(password_title)
+            password_layout.addWidget(self.current_password_input)
+            password_layout.addWidget(self.new_password_input)
+            password_layout.addWidget(self.confirm_new_password_input)
+            password_layout.addWidget(btn_change_password)
+
+            self.layout.addWidget(password_card)
 
             discover_label = QLabel("🤝 Theo dõi người dùng")
             discover_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
@@ -2402,6 +2471,30 @@ class ProfilePage(QWidget):
             widget = item.widget()
             if widget:
                 widget.deleteLater()
+
+    def handle_change_password(self):
+        current_user = self.get_current_user_callback()
+        if not current_user:
+            self.show_message("Bạn cần đăng nhập.", "warning")
+            return
+
+        current_password = self.current_password_input.text().strip()
+        new_password = self.new_password_input.text().strip()
+        confirm_password = self.confirm_new_password_input.text().strip()
+
+        if not current_password or not new_password or not confirm_password:
+            self.show_message("Vui lòng nhập đầy đủ thông tin đổi mật khẩu.", "warning")
+            return
+        if new_password != confirm_password:
+            self.show_message("Xác nhận mật khẩu mới không khớp.", "error")
+            return
+
+        success, message = self.change_password_callback(current_user, current_password, new_password)
+        self.show_message(message, "success" if success else "error")
+        if success:
+            self.current_password_input.clear()
+            self.new_password_input.clear()
+            self.confirm_new_password_input.clear()
 
     def handle_upload_avatar(self):
         current_user = self.get_current_user_callback()
@@ -2818,6 +2911,39 @@ class MainWindow(QWidget):
         self.render_notifications()
         self.update_auth_state()
         return True, "Đăng nhập thành công!", ""
+
+    def change_password(self, username, current_password, new_password):
+        if not username:
+            return False, "Bạn cần đăng nhập."
+        if not new_password or len(new_password) < 6:
+            return False, "Mật khẩu mới cần ít nhất 6 ký tự."
+
+        user_data = users.get(username)
+        if not user_data:
+            return False, "Không tìm thấy tài khoản."
+
+        if isinstance(user_data, str):
+            if user_data != current_password:
+                return False, "Mật khẩu hiện tại không đúng."
+            users[username] = {
+                "password": new_password,
+                "avatar": "",
+                "suspended_until": "",
+                "suspend_reason": "",
+                "suspended_by": "",
+                "suspended_at": "",
+                "suspend_duration_label": "",
+                "email": "",
+            }
+        elif isinstance(user_data, dict):
+            if user_data.get("password", "") != current_password:
+                return False, "Mật khẩu hiện tại không đúng."
+            user_data["password"] = new_password
+        else:
+            return False, "Dữ liệu tài khoản không hợp lệ."
+
+        save_users(users)
+        return True, "Đổi mật khẩu thành công."
 
     def register_user(self, username, password, email=""):
         if not username or not password:
@@ -3496,6 +3622,7 @@ class MainWindow(QWidget):
             self.show_inline_message,
             self.admin_suspend_user,
             self.admin_delete_post,
+            self.change_password,
             self.show_home,
         )
         self.content_area.addWidget(self.profile_page)
