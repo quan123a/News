@@ -2001,7 +2001,7 @@ class ProfilePage(QWidget):
         back_btn = QPushButton("← Quay lại")
         back_btn.setFixedWidth(120)
         back_btn.setFixedHeight(34)
-        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.92); color: #1e2a56; border-radius: 17px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 10px;")
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 17px; padding: 0 10px; font-weight: bold;")
         back_btn.clicked.connect(self.back_callback)
 
         title = QLabel("👤 Trang hồ sơ người dùng")
