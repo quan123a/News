@@ -805,7 +805,7 @@ class DetailPage(QWidget):
         layout.setContentsMargins(150, 30, 150, 30)
         layout.setSpacing(14)
 
-        back_btn = QPushButton("← Về")
+        back_btn = QPushButton("← Quay lại")
         back_btn.clicked.connect(back_callback)
         back_btn.setFixedWidth(120)
         back_btn.setFixedHeight(34)
@@ -1039,7 +1039,7 @@ class CreatePage(QWidget):
         layout.setContentsMargins(300, 50, 300, 50)
         layout.setSpacing(20)
 
-        back_btn = QPushButton("← Về")
+        back_btn = QPushButton("← Quay lại")
         back_btn.setFixedWidth(120)
         back_btn.setFixedHeight(34)
         back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 17px; padding: 0 10px; font-weight: bold;")
@@ -1275,10 +1275,22 @@ class GroupPage(QWidget):
             if widget:
                 widget.deleteLater()
 
-        back_btn = QPushButton("← Về")
-        back_btn.setFixedWidth(120)
-        back_btn.setFixedHeight(34)
-        back_btn.setStyleSheet(self.primary_btn_style)
+        back_btn = QPushButton("← Quay lại")
+        back_btn.setFixedWidth(132)
+        back_btn.setFixedHeight(36)
+        back_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255,255,255,0.95);
+                color: #1e2a56;
+                border: 1px solid rgba(0,0,0,0.14);
+                border-radius: 8px;
+                padding: 0 10px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #dbe4ff;
+            }
+        """)
         back_btn.clicked.connect(self.back_callback)
 
         title = QLabel("👥 Nhóm riêng")
@@ -1986,7 +1998,7 @@ class ProfilePage(QWidget):
     def render_ui(self):
         self.clear_layout()
 
-        back_btn = QPushButton("← Về")
+        back_btn = QPushButton("← Quay lại")
         back_btn.setFixedWidth(120)
         back_btn.setFixedHeight(34)
         back_btn.setStyleSheet("background-color: rgba(255,255,255,0.92); color: #1e2a56; border-radius: 17px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 10px;")
