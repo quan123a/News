@@ -1083,7 +1083,7 @@ class CreatePage(QWidget):
             }
         """)
 
-        image_btn = QPushButton("Tải ảnh")
+        image_btn = QPushButton("📷 Tải ảnh")
         image_btn.setFixedHeight(45)
         image_btn.setStyleSheet("""
             QPushButton {
@@ -2121,7 +2121,7 @@ class ProfilePage(QWidget):
 
             action_row = QHBoxLayout()
 
-            btn_upload_avatar = QPushButton("Tải ảnh đại diện")
+            btn_upload_avatar = QPushButton("🖼 Tải ảnh đại diện")
             btn_upload_avatar.clicked.connect(self.handle_upload_avatar)
             btn_upload_avatar.setFixedHeight(42)
             btn_upload_avatar.setStyleSheet("""
@@ -2230,7 +2230,7 @@ class ProfilePage(QWidget):
 
             self.layout.addWidget(change_pwd_card)
 
-            discover_label = QLabel("Theo dõi người dùng")
+            discover_label = QLabel("🤝 Theo dõi người dùng")
             discover_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
             self.layout.addWidget(discover_label)
 
@@ -3646,3 +3646,4 @@ if __name__ == "__main__":
 
     window.show()
     sys.exit(app.exec_())
+
