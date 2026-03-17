@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
     QDialog, QDialogButtonBox, QComboBox, QStackedWidget
 )
 from PyQt5.QtGui import QPixmap, QFont, QPainter, QPainterPath, QColor, QPen
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QEvent
 
 
 # =======================
@@ -2664,6 +2664,7 @@ class MainWindow(QWidget):
 
         self.current_user = None
         self.password_reset_tokens = {}
+        self.selected_notification = None
 
         self.setWindowTitle("NovaNews Desktop")
         self.resize(1440, 900)
@@ -2740,8 +2741,8 @@ class MainWindow(QWidget):
             }
         """)
 
-        notify_wrapper = QFrame()
-        notify_layout = QHBoxLayout(notify_wrapper)
+        self.notify_wrapper = QFrame()
+        notify_layout = QHBoxLayout(self.notify_wrapper)
         notify_layout.setContentsMargins(0, 0, 0, 0)
         notify_layout.setSpacing(6)
         notify_layout.addWidget(self.btn_notify)
@@ -2756,29 +2757,29 @@ class MainWindow(QWidget):
         menu_layout.addWidget(self.btn_create)
         menu_layout.addWidget(self.btn_profile)
         menu_layout.addWidget(self.btn_groups)
-        menu_layout.addWidget(notify_wrapper)
+        menu_layout.addWidget(self.notify_wrapper)
 
         self.main_layout.addWidget(self.menu_bar)
 
-        self.notification_panel = QFrame()
+        self.notification_panel = QFrame(self)
         self.notification_panel.setVisible(False)
-        self.notification_panel.setMinimumHeight(360)
+        self.notification_panel.setFixedWidth(420)
+        self.notification_panel.setFixedHeight(500)
         self.notification_panel.setStyleSheet("""
             QFrame {
-                background-color: rgba(15,23,42,0.92);
+                background-color: rgba(15,23,42,0.95);
                 border: 1px solid rgba(255,255,255,0.45);
-                border-radius: 18px;
-                margin: 8px 24px;
+                border-radius: 16px;
             }
         """)
 
         panel_layout = QVBoxLayout(self.notification_panel)
-        panel_layout.setContentsMargins(14, 12, 14, 12)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(12, 12, 12, 12)
+        panel_layout.setSpacing(8)
 
         panel_title = QLabel("🔔 Thông báo")
         panel_title.setStyleSheet(
-            "color: white; font-size: 18px; font-weight: bold;"
+            "color: white; font-size: 17px; font-weight: bold;"
             "padding: 6px 10px;"
             "background-color: rgba(255,255,255,0.08);"
             "border-radius: 10px;"
@@ -2786,25 +2787,24 @@ class MainWindow(QWidget):
         )
 
         action_row = QHBoxLayout()
-        btn_mark_read = QPushButton("✓ Đánh dấu đã đọc")
-        btn_clear = QPushButton("🗑 Xóa notification")
+        self.btn_mark_read = QPushButton("✓ Đánh dấu đã đọc")
+        self.btn_delete_selected = QPushButton("🗑 Xóa đã chọn")
 
         for btn, bg, hover, pressed in [
-            (btn_mark_read, "#4e73df", "#3f63c9", "#3555ad"),
-            (btn_clear, "#e74a3b", "#d83b2e", "#bf3327")
+            (self.btn_mark_read, "#4e73df", "#3f63c9", "#3555ad"),
+            (self.btn_delete_selected, "#e74a3b", "#d83b2e", "#bf3327")
         ]:
-            btn.setFixedHeight(40)
-            btn.setMinimumWidth(180)
+            btn.setFixedHeight(36)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {bg};
                     color: white;
-                    border-radius: 20px;
-                    font-size: 13px;
+                    border-radius: 18px;
+                    font-size: 12px;
                     font-weight: bold;
                     border: 1px solid rgba(255,255,255,0.40);
-                    padding: 0 16px;
+                    padding: 0 12px;
                 }}
                 QPushButton:hover {{
                     background-color: {hover};
@@ -2815,27 +2815,25 @@ class MainWindow(QWidget):
                 }}
             """)
 
-        btn_mark_read.clicked.connect(self.mark_all_notifications_read)
-        btn_clear.clicked.connect(self.clear_notifications)
-        action_row.addWidget(btn_mark_read)
-        action_row.addWidget(btn_clear)
+        self.btn_mark_read.clicked.connect(self.mark_all_notifications_read)
+        self.btn_delete_selected.clicked.connect(self.delete_selected_notification)
+        action_row.addWidget(self.btn_mark_read)
+        action_row.addWidget(self.btn_delete_selected)
         action_row.addStretch()
 
         self.notification_scroll = QScrollArea()
-        self.notification_scroll.setMinimumHeight(260)
         self.notification_scroll.setWidgetResizable(True)
         self.notification_scroll.setStyleSheet("border: none;")
 
         self.notification_container = QWidget()
         self.notification_layout = QVBoxLayout(self.notification_container)
         self.notification_layout.setContentsMargins(0, 0, 0, 0)
+        self.notification_layout.setSpacing(8)
         self.notification_scroll.setWidget(self.notification_container)
 
         panel_layout.addWidget(panel_title)
         panel_layout.addLayout(action_row)
         panel_layout.addWidget(self.notification_scroll)
-
-        self.main_layout.addWidget(self.notification_panel)
 
         self.content_area = QVBoxLayout()
         self.main_layout.addLayout(self.content_area)
@@ -2844,11 +2842,13 @@ class MainWindow(QWidget):
 
         self.update_auth_state()
         self.update_notification_badge()
+        QApplication.instance().installEventFilter(self)
 
     def update_auth_state(self):
         logged_in = bool(self.current_user)
         self.menu_bar.setVisible(False)
         self.notification_panel.setVisible(False)
+        self.selected_notification = None
         self.notify_badge.setVisible(False)
         self.btn_notify.setVisible(False)
         self.app_title.setVisible(not logged_in)
@@ -3099,6 +3099,7 @@ class MainWindow(QWidget):
     def logout_user(self):
         self.current_user = None
         self.password_reset_tokens = {}
+        self.selected_notification = None
         self.update_notification_badge()
         self.render_notifications()
         self.update_auth_state()
@@ -3177,12 +3178,45 @@ class MainWindow(QWidget):
         self.notify_badge.setText(str(unread_count))
         self.notify_badge.setVisible(unread_count > 0)
 
+    def position_notification_panel(self):
+        x = max(12, self.width() - self.notification_panel.width() - 16)
+        y = self.menu_bar.geometry().bottom() + 10
+        self.notification_panel.move(x, y)
+
+    def show_notification_panel(self):
+        self.position_notification_panel()
+        self.render_notifications()
+        self.notification_panel.show()
+        self.notification_panel.raise_()
+
+    def hide_notification_panel(self):
+        self.notification_panel.hide()
+
     def toggle_notification_panel(self):
-        should_show = not self.notification_panel.isVisible()
-        self.notification_panel.setVisible(should_show)
-        if should_show:
-            self.render_notifications()
-            self.notification_panel.raise_()
+        if self.notification_panel.isVisible():
+            self.hide_notification_panel()
+        else:
+            self.show_notification_panel()
+
+    def eventFilter(self, watched, event):
+        if self.notification_panel.isVisible() and event.type() == QEvent.MouseButtonPress:
+            clicked_widget = QApplication.widgetAt(event.globalPos())
+            if clicked_widget:
+                if (
+                    clicked_widget is self.notification_panel
+                    or self.notification_panel.isAncestorOf(clicked_widget)
+                    or clicked_widget is self.btn_notify
+                    or clicked_widget is self.notify_badge
+                    or self.notify_wrapper.isAncestorOf(clicked_widget)
+                ):
+                    return super().eventFilter(watched, event)
+            self.hide_notification_panel()
+        return super().eventFilter(watched, event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.notification_panel.isVisible():
+            self.position_notification_panel()
 
     def clear_notification_widgets(self):
         while self.notification_layout.count():
@@ -3195,6 +3229,11 @@ class MainWindow(QWidget):
         self.clear_notification_widgets()
         current_items = self.get_notifications_for_current_user()
 
+        if self.selected_notification not in current_items:
+            self.selected_notification = None
+
+        self.btn_delete_selected.setEnabled(bool(self.selected_notification))
+
         if not self.current_user:
             label = QLabel("Vui lòng đăng nhập để xem thông báo.")
             label.setStyleSheet("color: #f1f1f1;")
@@ -3205,6 +3244,7 @@ class MainWindow(QWidget):
             self.notification_layout.addWidget(label)
         else:
             for item in current_items:
+                is_selected = item is self.selected_notification
                 row = QFrame()
                 row.setStyleSheet("""
                     QFrame {
@@ -3213,9 +3253,17 @@ class MainWindow(QWidget):
                         border: 1px solid rgba(255,255,255,0.25);
                         padding: 8px;
                     }
+                """ if not is_selected else """
+                    QFrame {
+                        background-color: rgba(78,115,223,0.35);
+                        border-radius: 10px;
+                        border: 1px solid rgba(255,255,255,0.85);
+                        padding: 8px;
+                    }
                 """)
                 row_layout = QHBoxLayout(row)
                 row_layout.setContentsMargins(10, 8, 10, 8)
+                row_layout.setSpacing(8)
 
                 text = item.get("message", "Thông báo")
                 if not item.get("read", False):
@@ -3229,21 +3277,38 @@ class MainWindow(QWidget):
                 label.setStyleSheet("color: white;")
 
                 open_btn = QPushButton("Mở")
-                open_btn.setFixedWidth(92)
+                open_btn.setFixedWidth(60)
                 open_btn.clicked.connect(lambda _, n=item: self.open_notification(n))
 
                 remove_btn = QPushButton("Xóa")
-                remove_btn.setFixedWidth(92)
+                remove_btn.setFixedWidth(60)
                 remove_btn.clicked.connect(lambda _, n=item: self.delete_notification(n))
 
                 row_layout.addWidget(label, 1)
                 row_layout.addWidget(open_btn)
                 row_layout.addWidget(remove_btn)
 
+                row.mousePressEvent = lambda e, n=item: self.select_notification(n)
+                label.mousePressEvent = lambda e, n=item: self.select_notification(n)
+
                 self.notification_layout.addWidget(row)
 
         self.notification_layout.addStretch()
         self.update_notification_badge()
+
+    def select_notification(self, notification_item):
+        if not self.current_user:
+            return
+        self.selected_notification = notification_item
+        if not notification_item.get("read", False):
+            notification_item["read"] = True
+            save_notifications(notifications)
+        self.render_notifications()
+
+    def delete_selected_notification(self):
+        if not self.current_user or not self.selected_notification:
+            return
+        self.delete_notification(self.selected_notification)
 
     def mark_all_notifications_read(self):
         if not self.current_user:
@@ -3272,6 +3337,7 @@ class MainWindow(QWidget):
     def open_notification(self, notification_item):
         if not self.current_user:
             return
+        self.selected_notification = notification_item
         notification_item["read"] = True
         save_notifications(notifications)
         self.update_notification_badge()
@@ -3280,6 +3346,7 @@ class MainWindow(QWidget):
         for post in posts:
             if post.get("id") == target_post_id:
                 self.show_detail(post)
+                self.hide_notification_panel()
                 break
         self.render_notifications()
 
