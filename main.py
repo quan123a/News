@@ -805,7 +805,7 @@ class DetailPage(QWidget):
         layout.setContentsMargins(150, 30, 150, 30)
         layout.setSpacing(14)
 
-        back_btn = QPushButton("← Quay lại")
+        back_btn = QPushButton("← Về")
         back_btn.clicked.connect(back_callback)
         back_btn.setFixedWidth(190)
         back_btn.setFixedHeight(46)
@@ -1039,7 +1039,7 @@ class CreatePage(QWidget):
         layout.setContentsMargins(300, 50, 300, 50)
         layout.setSpacing(20)
 
-        back_btn = QPushButton("← Quay lại")
+        back_btn = QPushButton("← Về")
         back_btn.setFixedHeight(40)
         back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 20px; padding: 0 14px; font-weight: bold;")
         back_btn.clicked.connect(self.back_callback)
@@ -1274,7 +1274,7 @@ class GroupPage(QWidget):
             if widget:
                 widget.deleteLater()
 
-        back_btn = QPushButton("← Quay lại")
+        back_btn = QPushButton("← Về")
         back_btn.setFixedHeight(40)
         back_btn.setStyleSheet(self.primary_btn_style)
         back_btn.clicked.connect(self.back_callback)
@@ -1793,7 +1793,7 @@ class AuthGatePage(QWidget):
 
         self.btn_send_code = QPushButton("Gửi mã xác thực")
         self.btn_confirm_reset = QPushButton("Đổi mật khẩu mới")
-        self.btn_back_login = QPushButton("← Quay lại đăng nhập")
+        self.btn_back_login = QPushButton("← Về")
 
         for btn in [self.btn_login, self.btn_register, self.btn_forgot, self.btn_send_code, self.btn_confirm_reset, self.btn_back_login]:
             btn.setFixedHeight(40)
@@ -1962,6 +1962,7 @@ class ProfilePage(QWidget):
         self.change_password_callback = change_password_callback
         self.editing_post = None
         self.delete_pending_post_id = None
+        self.profile_section = "menu"
 
         self.root_layout = QVBoxLayout(self)
         self.root_layout.setContentsMargins(0, 0, 0, 0)
@@ -1983,7 +1984,7 @@ class ProfilePage(QWidget):
     def render_ui(self):
         self.clear_layout()
 
-        back_btn = QPushButton("← Quay lại")
+        back_btn = QPushButton("← Về")
         back_btn.setFixedHeight(40)
         back_btn.setStyleSheet("background-color: rgba(255,255,255,0.92); color: #1e2a56; border-radius: 20px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 14px;")
         back_btn.clicked.connect(self.back_callback)
@@ -2163,90 +2164,33 @@ class ProfilePage(QWidget):
 
             self.layout.addWidget(welcome_card)
 
-            change_pwd_card = QFrame()
-            change_pwd_card.setStyleSheet("""
+            feature_card = QFrame()
+            feature_card.setStyleSheet("""
                 QFrame {
-                    background-color: rgba(0,0,0,0.28);
+                    background-color: rgba(0,0,0,0.24);
                     border-radius: 16px;
-                    border: 1px solid rgba(255,255,255,0.35);
+                    border: 1px solid rgba(255,255,255,0.30);
                     padding: 12px;
                 }
             """)
-            change_layout = QVBoxLayout(change_pwd_card)
-            change_layout.setSpacing(10)
+            feature_layout = QVBoxLayout(feature_card)
+            feature_layout.setSpacing(10)
+            feature_title = QLabel("⚙ Tính năng")
+            feature_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+            feature_layout.addWidget(feature_title)
 
-            change_title = QLabel("🔐 Đổi mật khẩu")
-            change_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+            nav_row = QHBoxLayout()
+            nav_row.setSpacing(8)
+            section_buttons = [
+                ("🔐 Đổi mật khẩu", "change_password"),
+                ("🤝 Theo dõi", "discover"),
+                ("📚 Bài viết", "posts"),
+            ]
+            if current_user == ADMIN_USERNAME:
+                section_buttons.append(("🛡 Quản trị", "admin"))
 
-            self.current_password_input = QLineEdit()
-            self.current_password_input.setPlaceholderText("Mật khẩu hiện tại")
-            self.current_password_input.setEchoMode(QLineEdit.Password)
-
-            self.new_password_input = QLineEdit()
-            self.new_password_input.setPlaceholderText("Mật khẩu mới")
-            self.new_password_input.setEchoMode(QLineEdit.Password)
-
-            self.confirm_new_password_input = QLineEdit()
-            self.confirm_new_password_input.setPlaceholderText("Xác nhận mật khẩu mới")
-            self.confirm_new_password_input.setEchoMode(QLineEdit.Password)
-
-            for field in [self.current_password_input, self.new_password_input, self.confirm_new_password_input]:
-                field.setFixedHeight(40)
-                field.setStyleSheet("""
-                    QLineEdit {
-                        background-color: rgba(255,255,255,0.95);
-                        border-radius: 20px;
-                        padding: 0 12px;
-                        border: 1px solid rgba(255,255,255,0.35);
-                        font-size: 13px;
-                    }
-                    QLineEdit:focus {
-                        border: 2px solid #8fb0ff;
-                    }
-                """)
-
-            btn_change_pwd = QPushButton("Đổi mật khẩu")
-            btn_change_pwd.setFixedHeight(40)
-            btn_change_pwd.setStyleSheet("""
-                QPushButton {
-                    background-color: #4e73df;
-                    color: white;
-                    border-radius: 20px;
-                    font-weight: bold;
-                    border: 1px solid rgba(255,255,255,0.35);
-                    padding: 0 14px;
-                }
-                QPushButton:hover {
-                    background-color: #3558c9;
-                }
-            """)
-            btn_change_pwd.clicked.connect(self.handle_change_password)
-
-            change_layout.addWidget(change_title)
-            change_layout.addWidget(self.current_password_input)
-            change_layout.addWidget(self.new_password_input)
-            change_layout.addWidget(self.confirm_new_password_input)
-            change_layout.addWidget(btn_change_pwd)
-
-            self.layout.addWidget(change_pwd_card)
-
-            discover_label = QLabel("🤝 Theo dõi người dùng")
-            discover_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
-            self.layout.addWidget(discover_label)
-
-            for username in users.keys():
-                if username == current_user:
-                    continue
-                row = QFrame()
-                row_layout = QHBoxLayout(row)
-                user_followers, _ = self.get_follow_stats_callback(username)
-
-                row_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(username), 34))
-                info = QLabel(f"{username} - 👥 {user_followers} followers")
-                info.setStyleSheet("color: white;")
-
-                following = current_user in follows and username in follows.get(current_user, [])
-                btn = QPushButton("Bỏ theo dõi" if following else "Theo dõi")
+            for label, section in section_buttons:
+                btn = QPushButton(label)
                 btn.setFixedHeight(38)
                 btn.setStyleSheet("""
                     QPushButton {
@@ -2255,215 +2199,335 @@ class ProfilePage(QWidget):
                         border-radius: 19px;
                         font-weight: bold;
                         border: 1px solid rgba(255,255,255,0.45);
-                        padding: 0 14px;
+                        padding: 0 12px;
                     }
                     QPushButton:hover {
                         background-color: #dbe4ff;
                     }
                 """)
-                btn.clicked.connect(lambda _, target=username: self.handle_toggle_follow(target))
-                row_layout.addWidget(info, 1)
-                row_layout.addWidget(btn)
-                self.layout.addWidget(row)
+                btn.clicked.connect(lambda _, s=section: self.open_profile_section(s))
+                nav_row.addWidget(btn)
 
-            my_posts_label = QLabel("📚 Quản lí bài viết của bạn")
-            my_posts_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
-            self.layout.addWidget(my_posts_label)
+            nav_row.addStretch()
+            feature_layout.addLayout(nav_row)
+            self.layout.addWidget(feature_card)
 
-            my_posts = [post for post in posts if post.get("author") == current_user]
+            if self.profile_section != "menu":
+                section_back_btn = QPushButton("← Hồ sơ")
+                section_back_btn.setFixedHeight(36)
+                section_back_btn.setStyleSheet("background-color: rgba(255,255,255,0.9); color: #1e2a56; border-radius: 18px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 12px;")
+                section_back_btn.clicked.connect(lambda: self.open_profile_section("menu"))
+                self.layout.addWidget(section_back_btn)
 
-            if not my_posts:
-                empty = QLabel("Bạn chưa đăng bài nào.")
-                empty.setStyleSheet("color: #f1f1f1;")
-                self.layout.addWidget(empty)
-            else:
-                if self.editing_post:
-                    edit_card = QFrame()
-                    edit_card.setStyleSheet("""
-                        QFrame {
-                            background-color: rgba(0,0,0,0.34);
-                            border: 1px solid rgba(255,255,255,0.35);
-                            border-radius: 18px;
-                            padding: 14px;
-                        }
-                    """)
-                    edit_layout = QVBoxLayout(edit_card)
+            if self.profile_section == "change_password":
+                change_pwd_card = QFrame()
+                change_pwd_card.setStyleSheet("""
+                    QFrame {
+                        background-color: rgba(0,0,0,0.28);
+                        border-radius: 16px;
+                        border: 1px solid rgba(255,255,255,0.35);
+                        padding: 12px;
+                    }
+                """)
+                change_layout = QVBoxLayout(change_pwd_card)
+                change_layout.setSpacing(10)
 
-                    edit_title = QLabel("✏ Chỉnh sửa bài viết")
-                    edit_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+                change_title = QLabel("🔐 Đổi mật khẩu")
+                change_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
 
-                    self.edit_title_input = QLineEdit(self.editing_post.get("title", ""))
-                    self.edit_title_input.setPlaceholderText("Tiêu đề")
-                    self.edit_content_input = QTextEdit(self.editing_post.get("content", ""))
-                    self.edit_content_input.setPlaceholderText("Nội dung")
+                self.current_password_input = QLineEdit()
+                self.current_password_input.setPlaceholderText("Mật khẩu hiện tại")
+                self.current_password_input.setEchoMode(QLineEdit.Password)
 
-                    self.edit_title_input.setStyleSheet("""
+                self.new_password_input = QLineEdit()
+                self.new_password_input.setPlaceholderText("Mật khẩu mới")
+                self.new_password_input.setEchoMode(QLineEdit.Password)
+
+                self.confirm_new_password_input = QLineEdit()
+                self.confirm_new_password_input.setPlaceholderText("Xác nhận mật khẩu mới")
+                self.confirm_new_password_input.setEchoMode(QLineEdit.Password)
+
+                for field in [self.current_password_input, self.new_password_input, self.confirm_new_password_input]:
+                    field.setFixedHeight(40)
+                    field.setStyleSheet("""
                         QLineEdit {
                             background-color: rgba(255,255,255,0.95);
-                            border-radius: 10px;
-                            padding: 8px 10px;
-                            border: 1px solid rgba(255,255,255,0.4);
+                            border-radius: 20px;
+                            padding: 0 12px;
+                            border: 1px solid rgba(255,255,255,0.35);
+                            font-size: 13px;
                         }
-                    """)
-                    self.edit_content_input.setStyleSheet("""
-                        QTextEdit {
-                            background-color: rgba(255,255,255,0.95);
-                            border-radius: 10px;
-                            padding: 10px;
-                            border: 1px solid rgba(255,255,255,0.4);
-                            min-height: 120px;
+                        QLineEdit:focus {
+                            border: 2px solid #8fb0ff;
                         }
                     """)
 
-                    edit_action_row = QHBoxLayout()
-                    btn_save_edit = QPushButton("💾 Lưu")
-                    btn_cancel_edit = QPushButton("✖ Hủy")
-                    for btn, color in [(btn_save_edit, "#1cc88a"), (btn_cancel_edit, "#e74a3b")]:
-                        btn.setFixedHeight(40)
-                        btn.setStyleSheet(f"""
-                            QPushButton {{
-                                background-color: {color};
-                                color: white;
-                                border-radius: 20px;
-                                font-weight: bold;
-                                border: 1px solid rgba(255,255,255,0.40);
-                                padding: 0 16px;
-                            }}
-                            QPushButton:hover {{
-                                background-color: rgba(255,255,255,0.28);
-                            }}
-                        """)
+                btn_change_pwd = QPushButton("Đổi mật khẩu")
+                btn_change_pwd.setFixedHeight(40)
+                btn_change_pwd.setStyleSheet("""
+                    QPushButton {
+                        background-color: #4e73df;
+                        color: white;
+                        border-radius: 20px;
+                        font-weight: bold;
+                        border: 1px solid rgba(255,255,255,0.35);
+                        padding: 0 14px;
+                    }
+                    QPushButton:hover {
+                        background-color: #3558c9;
+                    }
+                """)
+                btn_change_pwd.clicked.connect(self.handle_change_password)
 
-                    btn_save_edit.clicked.connect(self.handle_save_edit)
-                    btn_cancel_edit.clicked.connect(self.handle_cancel_edit)
-                    edit_action_row.addWidget(btn_save_edit)
-                    edit_action_row.addWidget(btn_cancel_edit)
-                    edit_action_row.addStretch()
+                change_layout.addWidget(change_title)
+                change_layout.addWidget(self.current_password_input)
+                change_layout.addWidget(self.new_password_input)
+                change_layout.addWidget(self.confirm_new_password_input)
+                change_layout.addWidget(btn_change_pwd)
 
-                    edit_layout.addWidget(edit_title)
-                    edit_layout.addWidget(self.edit_title_input)
-                    edit_layout.addWidget(self.edit_content_input)
-                    edit_layout.addLayout(edit_action_row)
-                    self.layout.addWidget(edit_card)
+                self.layout.addWidget(change_pwd_card)
 
-                for post in my_posts:
-                    post_card = QFrame()
-                    post_card.setStyleSheet("""
-                        QFrame {
-                            background-color: rgba(0,0,0,0.30);
-                            border: 1px solid rgba(255,255,255,0.30);
-                            border-radius: 18px;
-                            padding: 12px;
-                        }
-                    """)
-                    post_layout = QHBoxLayout(post_card)
-                    post_layout.setSpacing(12)
-
-                    post_info = QLabel(
-                        f"• {post['title']} ({post['date']}) | 👍 {len(post.get('likes', []))} | 💬 {len(post.get('comments', []))}"
-                    )
-                    post_info.setStyleSheet("color: white; font-weight: bold;")
-                    post_info.setWordWrap(True)
-
-                    btn_edit = QPushButton("✏ Sửa")
-                    btn_delete = QPushButton("🗑 Xóa")
-                    for btn, color in [(btn_edit, "#4e73df"), (btn_delete, "#e74a3b")]:
-                        btn.setFixedWidth(100)
-                        btn.setFixedHeight(40)
-                        btn.setStyleSheet(f"""
-                            QPushButton {{
-                                background-color: {color};
-                                color: white;
-                                border-radius: 20px;
-                                font-weight: bold;
-                                border: 1px solid rgba(255,255,255,0.40);
-                            }}
-                            QPushButton:hover {{
-                                background-color: rgba(255,255,255,0.28);
-                            }}
-                        """)
-
-                    btn_edit.clicked.connect(lambda _, p=post: self.handle_edit_post(p))
-                    btn_delete.clicked.connect(lambda _, p=post: self.handle_delete_post(p))
-
-                    post_layout.addWidget(post_info, 1)
-                    post_layout.addWidget(btn_edit)
-                    post_layout.addWidget(btn_delete)
-                    self.layout.addWidget(post_card)
-
-            if current_user == ADMIN_USERNAME:
-                admin_label = QLabel("🛡 Quản trị tài khoản & nội dung")
-                admin_label.setStyleSheet("color: #fff; font-size: 17px; font-weight: bold;")
-                self.layout.addWidget(admin_label)
+            if self.profile_section == "discover":
+                discover_label = QLabel("🤝 Theo dõi người dùng")
+                discover_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
+                self.layout.addWidget(discover_label)
 
                 for username in users.keys():
-                    if username == ADMIN_USERNAME:
+                    if username == current_user:
                         continue
-
                     row = QFrame()
-                    row.setStyleSheet("""
-                        QFrame {
-                            background-color: rgba(0,0,0,0.25);
-                            border: 1px solid rgba(255,255,255,0.28);
-                            border-radius: 14px;
-                            padding: 8px;
+                    row_layout = QHBoxLayout(row)
+                    user_followers, _ = self.get_follow_stats_callback(username)
+
+                    row_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(username), 34))
+                    info = QLabel(f"{username} - 👥 {user_followers} followers")
+                    info.setStyleSheet("color: white;")
+
+                    following = current_user in follows and username in follows.get(current_user, [])
+                    btn = QPushButton("Bỏ theo dõi" if following else "Theo dõi")
+                    btn.setFixedHeight(38)
+                    btn.setStyleSheet("""
+                        QPushButton {
+                            background-color: rgba(255,255,255,0.92);
+                            color: #1e2a56;
+                            border-radius: 19px;
+                            font-weight: bold;
+                            border: 1px solid rgba(255,255,255,0.45);
+                            padding: 0 14px;
+                        }
+                        QPushButton:hover {
+                            background-color: #dbe4ff;
                         }
                     """)
-                    row_layout = QHBoxLayout(row)
-                    row_layout.setSpacing(10)
-
-                    row_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(username), 32))
-                    info = QLabel(f"{username}")
-                    info.setStyleSheet("color: white; font-weight: bold;")
-
-                    suspend_box = StableDurationComboBox()
-                    suspend_box.addItems(list(SUSPEND_CHOICES.keys()))
-                    suspend_box.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
-
-                    reason_input = QLineEdit()
-                    reason_input.setPlaceholderText("Lý do khóa...")
-                    reason_input.setMinimumWidth(220)
-                    reason_input.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
-
-                    btn_suspend = QPushButton("Khóa")
-                    btn_suspend.setStyleSheet("background-color:#f6c23e; color:#1e2a56; border-radius:16px; padding:6px 12px; font-weight:bold;")
-                    btn_suspend.clicked.connect(lambda _, u=username, b=suspend_box, r=reason_input: self.handle_admin_suspend(u, b.currentText(), r.text().strip()))
-
+                    btn.clicked.connect(lambda _, target=username: self.handle_toggle_follow(target))
                     row_layout.addWidget(info, 1)
-                    row_layout.addWidget(suspend_box)
-                    row_layout.addWidget(reason_input)
-                    row_layout.addWidget(btn_suspend)
+                    row_layout.addWidget(btn)
                     self.layout.addWidget(row)
 
-                admin_post_label = QLabel("🗑 Xóa bài viết không phù hợp")
-                admin_post_label.setStyleSheet("color: #fff; font-size: 16px; font-weight: bold;")
-                self.layout.addWidget(admin_post_label)
+            if self.profile_section == "posts":
+                my_posts_label = QLabel("📚 Quản lí bài viết của bạn")
+                my_posts_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
+                self.layout.addWidget(my_posts_label)
 
-                for post in posts:
-                    if post.get("author") == ADMIN_USERNAME:
-                        continue
-                    row = QFrame()
-                    row.setStyleSheet("""
-                        QFrame {
-                            background-color: rgba(0,0,0,0.22);
-                            border: 1px solid rgba(255,255,255,0.25);
-                            border-radius: 12px;
-                            padding: 6px;
-                        }
-                    """)
-                    row_layout = QHBoxLayout(row)
-                    txt = QLabel(f"• {post.get('title','(Không tiêu đề)')} - {post.get('author','Ẩn danh')}")
-                    txt.setStyleSheet("color: white;")
+                my_posts = [post for post in posts if post.get("author") == current_user]
 
-                    btn_remove = QPushButton("Xóa bài")
-                    btn_remove.setStyleSheet("background-color:#e74a3b; color:white; border-radius:16px; padding:6px 12px; font-weight:bold;")
-                    btn_remove.clicked.connect(lambda _, p=post: self.handle_admin_delete_post(p))
+                if not my_posts:
+                    empty = QLabel("Bạn chưa đăng bài nào.")
+                    empty.setStyleSheet("color: #f1f1f1;")
+                    self.layout.addWidget(empty)
+                else:
+                    if self.editing_post:
+                        edit_card = QFrame()
+                        edit_card.setStyleSheet("""
+                            QFrame {
+                                background-color: rgba(0,0,0,0.34);
+                                border: 1px solid rgba(255,255,255,0.35);
+                                border-radius: 18px;
+                                padding: 14px;
+                            }
+                        """)
+                        edit_layout = QVBoxLayout(edit_card)
 
-                    row_layout.addWidget(txt, 1)
-                    row_layout.addWidget(btn_remove)
-                    self.layout.addWidget(row)
+                        edit_title = QLabel("✏ Chỉnh sửa bài viết")
+                        edit_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+
+                        self.edit_title_input = QLineEdit(self.editing_post.get("title", ""))
+                        self.edit_title_input.setPlaceholderText("Tiêu đề")
+                        self.edit_content_input = QTextEdit(self.editing_post.get("content", ""))
+                        self.edit_content_input.setPlaceholderText("Nội dung")
+
+                        self.edit_title_input.setStyleSheet("""
+                            QLineEdit {
+                                background-color: rgba(255,255,255,0.95);
+                                border-radius: 10px;
+                                padding: 8px 10px;
+                                border: 1px solid rgba(255,255,255,0.4);
+                            }
+                        """)
+                        self.edit_content_input.setStyleSheet("""
+                            QTextEdit {
+                                background-color: rgba(255,255,255,0.95);
+                                border-radius: 10px;
+                                padding: 10px;
+                                border: 1px solid rgba(255,255,255,0.4);
+                                min-height: 120px;
+                            }
+                        """)
+
+                        edit_action_row = QHBoxLayout()
+                        btn_save_edit = QPushButton("💾 Lưu")
+                        btn_cancel_edit = QPushButton("✖ Hủy")
+                        for btn, color in [(btn_save_edit, "#1cc88a"), (btn_cancel_edit, "#e74a3b")]:
+                            btn.setFixedHeight(40)
+                            btn.setStyleSheet(f"""
+                                QPushButton {{
+                                    background-color: {color};
+                                    color: white;
+                                    border-radius: 20px;
+                                    font-weight: bold;
+                                    border: 1px solid rgba(255,255,255,0.40);
+                                    padding: 0 16px;
+                                }}
+                                QPushButton:hover {{
+                                    background-color: rgba(255,255,255,0.28);
+                                }}
+                            """)
+
+                        btn_save_edit.clicked.connect(self.handle_save_edit)
+                        btn_cancel_edit.clicked.connect(self.handle_cancel_edit)
+                        edit_action_row.addWidget(btn_save_edit)
+                        edit_action_row.addWidget(btn_cancel_edit)
+                        edit_action_row.addStretch()
+
+                        edit_layout.addWidget(edit_title)
+                        edit_layout.addWidget(self.edit_title_input)
+                        edit_layout.addWidget(self.edit_content_input)
+                        edit_layout.addLayout(edit_action_row)
+                        self.layout.addWidget(edit_card)
+
+                    for post in my_posts:
+                        post_card = QFrame()
+                        post_card.setStyleSheet("""
+                            QFrame {
+                                background-color: rgba(0,0,0,0.30);
+                                border: 1px solid rgba(255,255,255,0.30);
+                                border-radius: 18px;
+                                padding: 12px;
+                            }
+                        """)
+                        post_layout = QHBoxLayout(post_card)
+                        post_layout.setSpacing(12)
+
+                        post_info = QLabel(
+                            f"• {post['title']} ({post['date']}) | 👍 {len(post.get('likes', []))} | 💬 {len(post.get('comments', []))}"
+                        )
+                        post_info.setStyleSheet("color: white; font-weight: bold;")
+                        post_info.setWordWrap(True)
+
+                        btn_edit = QPushButton("✏ Sửa")
+                        btn_delete = QPushButton("🗑 Xóa")
+                        for btn, color in [(btn_edit, "#4e73df"), (btn_delete, "#e74a3b")]:
+                            btn.setFixedWidth(100)
+                            btn.setFixedHeight(40)
+                            btn.setStyleSheet(f"""
+                                QPushButton {{
+                                    background-color: {color};
+                                    color: white;
+                                    border-radius: 20px;
+                                    font-weight: bold;
+                                    border: 1px solid rgba(255,255,255,0.40);
+                                }}
+                                QPushButton:hover {{
+                                    background-color: rgba(255,255,255,0.28);
+                                }}
+                            """)
+
+                        btn_edit.clicked.connect(lambda _, p=post: self.handle_edit_post(p))
+                        btn_delete.clicked.connect(lambda _, p=post: self.handle_delete_post(p))
+
+                        post_layout.addWidget(post_info, 1)
+                        post_layout.addWidget(btn_edit)
+                        post_layout.addWidget(btn_delete)
+                        self.layout.addWidget(post_card)
+
+            if self.profile_section == "admin" and current_user == ADMIN_USERNAME:
+                if current_user == ADMIN_USERNAME:
+                    admin_label = QLabel("🛡 Quản trị tài khoản & nội dung")
+                    admin_label.setStyleSheet("color: #fff; font-size: 17px; font-weight: bold;")
+                    self.layout.addWidget(admin_label)
+
+                    for username in users.keys():
+                        if username == ADMIN_USERNAME:
+                            continue
+
+                        row = QFrame()
+                        row.setStyleSheet("""
+                            QFrame {
+                                background-color: rgba(0,0,0,0.25);
+                                border: 1px solid rgba(255,255,255,0.28);
+                                border-radius: 14px;
+                                padding: 8px;
+                            }
+                        """)
+                        row_layout = QHBoxLayout(row)
+                        row_layout.setSpacing(10)
+
+                        row_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(username), 32))
+                        info = QLabel(f"{username}")
+                        info.setStyleSheet("color: white; font-weight: bold;")
+
+                        suspend_box = StableDurationComboBox()
+                        suspend_box.addItems(list(SUSPEND_CHOICES.keys()))
+                        suspend_box.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
+
+                        reason_input = QLineEdit()
+                        reason_input.setPlaceholderText("Lý do khóa...")
+                        reason_input.setMinimumWidth(220)
+                        reason_input.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
+
+                        btn_suspend = QPushButton("Khóa")
+                        btn_suspend.setStyleSheet("background-color:#f6c23e; color:#1e2a56; border-radius:16px; padding:6px 12px; font-weight:bold;")
+                        btn_suspend.clicked.connect(lambda _, u=username, b=suspend_box, r=reason_input: self.handle_admin_suspend(u, b.currentText(), r.text().strip()))
+
+                        row_layout.addWidget(info, 1)
+                        row_layout.addWidget(suspend_box)
+                        row_layout.addWidget(reason_input)
+                        row_layout.addWidget(btn_suspend)
+                        self.layout.addWidget(row)
+
+                    admin_post_label = QLabel("🗑 Xóa bài viết không phù hợp")
+                    admin_post_label.setStyleSheet("color: #fff; font-size: 16px; font-weight: bold;")
+                    self.layout.addWidget(admin_post_label)
+
+                    for post in posts:
+                        if post.get("author") == ADMIN_USERNAME:
+                            continue
+                        row = QFrame()
+                        row.setStyleSheet("""
+                            QFrame {
+                                background-color: rgba(0,0,0,0.22);
+                                border: 1px solid rgba(255,255,255,0.25);
+                                border-radius: 12px;
+                                padding: 6px;
+                            }
+                        """)
+                        row_layout = QHBoxLayout(row)
+                        txt = QLabel(f"• {post.get('title','(Không tiêu đề)')} - {post.get('author','Ẩn danh')}")
+                        txt.setStyleSheet("color: white;")
+
+                        btn_remove = QPushButton("Xóa bài")
+                        btn_remove.setStyleSheet("background-color:#e74a3b; color:white; border-radius:16px; padding:6px 12px; font-weight:bold;")
+                        btn_remove.clicked.connect(lambda _, p=post: self.handle_admin_delete_post(p))
+
+                        row_layout.addWidget(txt, 1)
+                        row_layout.addWidget(btn_remove)
+                        self.layout.addWidget(row)
 
         self.layout.addStretch()
+
+    def open_profile_section(self, section):
+        self.profile_section = section
+        self.render_ui()
 
     def clear_layout(self):
         while self.layout.count():
@@ -2493,6 +2557,7 @@ class ProfilePage(QWidget):
         success, message, lock_notice = self.login_callback(username, password)
         if success:
             self.show_message("Đăng nhập thành công!", "success")
+            self.profile_section = "menu"
             self.render_ui()
         else:
             if lock_notice:
@@ -2517,6 +2582,7 @@ class ProfilePage(QWidget):
 
     def handle_logout(self):
         self.logout_callback()
+        self.profile_section = "menu"
         self.show_message("Đã đăng xuất!", "info")
         self.render_ui()
 
