@@ -644,7 +644,21 @@ class HomePage(QWidget):
         app_sub = QLabel("Ứng dụng tin tức desktop")
         app_sub.setStyleSheet("color:#475569; font-size:12px;")
 
-        self.btn_notify = QPushButton("🔔 Trung tâm thông báo")
+        self.btn_notify = QPushButton("🔔")
+        self.btn_notify.setFixedSize(46, 42)
+        self.btn_notify.setStyleSheet("""
+            QPushButton {
+                background-color: #4f46e5;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3730a3;
+            }
+        """)
         self.btn_notify.clicked.connect(self.toggle_notifications_callback)
         self.btn_create = QPushButton("✍️ Tạo bài mới")
         self.btn_create.clicked.connect(self.show_create_callback)
@@ -654,7 +668,6 @@ class HomePage(QWidget):
         self.btn_groups.clicked.connect(self.show_groups_callback)
 
         for btn, color in [
-            (self.btn_notify, "#4f46e5"),
             (self.btn_create, "#0ea5e9"),
             (self.btn_profile, "#10b981"),
             (self.btn_groups, "#f59e0b"),
@@ -679,7 +692,10 @@ class HomePage(QWidget):
         side_layout.addWidget(app_name)
         side_layout.addWidget(app_sub)
         side_layout.addSpacing(6)
-        side_layout.addWidget(self.btn_notify)
+        notify_row = QHBoxLayout()
+        notify_row.addWidget(self.btn_notify)
+        notify_row.addStretch()
+        side_layout.addLayout(notify_row)
         side_layout.addWidget(self.btn_create)
         side_layout.addWidget(self.btn_profile)
         side_layout.addWidget(self.btn_groups)
@@ -3179,8 +3195,15 @@ class MainWindow(QWidget):
         self.notify_badge.setVisible(unread_count > 0)
 
     def position_notification_panel(self):
-        x = max(12, self.width() - self.notification_panel.width() - 16)
-        y = self.menu_bar.geometry().bottom() + 10
+        bell_top_right = self.notify_wrapper.mapTo(self, self.notify_wrapper.rect().topRight())
+        x = bell_top_right.x() + 10
+        y = bell_top_right.y() - 2
+
+        max_x = self.width() - self.notification_panel.width() - 12
+        max_y = self.height() - self.notification_panel.height() - 12
+        x = max(12, min(x, max_x))
+        y = max(12, min(y, max_y))
+
         self.notification_panel.move(x, y)
 
     def show_notification_panel(self):
