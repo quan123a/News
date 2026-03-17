@@ -659,7 +659,7 @@ class HomePage(QWidget):
                 background-color: #3730a3;
             }
         """)
-        self.btn_notify.clicked.connect(self.toggle_notifications_callback)
+        self.btn_notify.clicked.connect(lambda: self.toggle_notifications_callback(self.btn_notify))
         self.btn_create = QPushButton("✍️ Tạo bài mới")
         self.btn_create.clicked.connect(self.show_create_callback)
         self.btn_profile = QPushButton("👤 Hồ sơ cá nhân")
@@ -2681,6 +2681,7 @@ class MainWindow(QWidget):
         self.current_user = None
         self.password_reset_tokens = {}
         self.selected_notification = None
+        self.notification_anchor_widget = None
 
         self.setWindowTitle("NovaNews Desktop")
         self.resize(1440, 900)
@@ -2865,6 +2866,7 @@ class MainWindow(QWidget):
         self.menu_bar.setVisible(False)
         self.notification_panel.setVisible(False)
         self.selected_notification = None
+        self.notification_anchor_widget = None
         self.notify_badge.setVisible(False)
         self.btn_notify.setVisible(False)
         self.app_title.setVisible(not logged_in)
@@ -3195,8 +3197,9 @@ class MainWindow(QWidget):
         self.notify_badge.setVisible(unread_count > 0)
 
     def position_notification_panel(self):
-        bell_top_right = self.notify_wrapper.mapTo(self, self.notify_wrapper.rect().topRight())
-        x = bell_top_right.x() + 10
+        anchor = self.notification_anchor_widget if self.notification_anchor_widget else self.notify_wrapper
+        bell_top_right = anchor.mapTo(self, anchor.rect().topRight())
+        x = bell_top_right.x() + 2
         y = bell_top_right.y() - 2
 
         max_x = self.width() - self.notification_panel.width() - 12
@@ -3215,7 +3218,12 @@ class MainWindow(QWidget):
     def hide_notification_panel(self):
         self.notification_panel.hide()
 
-    def toggle_notification_panel(self):
+    def toggle_notification_panel(self, source_widget=None):
+        if source_widget is not None:
+            self.notification_anchor_widget = source_widget
+        elif self.notification_anchor_widget is None:
+            self.notification_anchor_widget = self.notify_wrapper
+
         if self.notification_panel.isVisible():
             self.hide_notification_panel()
         else:
@@ -3231,6 +3239,13 @@ class MainWindow(QWidget):
                     or clicked_widget is self.btn_notify
                     or clicked_widget is self.notify_badge
                     or self.notify_wrapper.isAncestorOf(clicked_widget)
+                    or (
+                        self.notification_anchor_widget
+                        and (
+                            clicked_widget is self.notification_anchor_widget
+                            or self.notification_anchor_widget.isAncestorOf(clicked_widget)
+                        )
+                    )
                 ):
                     return super().eventFilter(watched, event)
             self.hide_notification_panel()
