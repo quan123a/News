@@ -807,17 +807,17 @@ class DetailPage(QWidget):
 
         back_btn = QPushButton("← Về")
         back_btn.clicked.connect(back_callback)
-        back_btn.setFixedWidth(190)
-        back_btn.setFixedHeight(46)
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
         back_btn.setStyleSheet("""
             QPushButton {
                 background-color: rgba(255, 255, 255, 0.94);
                 color: #1e2a56;
-                border-radius: 23px;
-                font-size: 14px;
+                border-radius: 17px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 2px solid rgba(30, 42, 86, 0.2);
-                padding: 0 18px;
+                padding: 0 10px;
             }
             QPushButton:hover {
                 background-color: #dbe4ff;
@@ -919,7 +919,7 @@ class DetailPage(QWidget):
         comment_row.addWidget(self.comment_input, 1)
         comment_row.addWidget(comment_btn)
 
-        layout.addWidget(back_btn)
+        layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         layout.addWidget(title)
         layout.addWidget(meta_box)
         layout.addWidget(image_label)
@@ -1040,8 +1040,9 @@ class CreatePage(QWidget):
         layout.setSpacing(20)
 
         back_btn = QPushButton("← Về")
-        back_btn.setFixedHeight(40)
-        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 20px; padding: 0 14px; font-weight: bold;")
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 17px; padding: 0 10px; font-weight: bold;")
         back_btn.clicked.connect(self.back_callback)
 
         title_label = QLabel("✍ Tạo bài viết mới")
@@ -1122,7 +1123,7 @@ class CreatePage(QWidget):
         """)
         publish_btn.clicked.connect(self.publish_post)
 
-        layout.addWidget(back_btn)
+        layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         layout.addWidget(title_label)
         layout.addWidget(self.title_input)
         layout.addWidget(self.content_input)
@@ -1275,7 +1276,8 @@ class GroupPage(QWidget):
                 widget.deleteLater()
 
         back_btn = QPushButton("← Về")
-        back_btn.setFixedHeight(40)
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
         back_btn.setStyleSheet(self.primary_btn_style)
         back_btn.clicked.connect(self.back_callback)
 
@@ -1283,7 +1285,7 @@ class GroupPage(QWidget):
         title.setFont(QFont("Arial", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:white;")
-        self.layout.addWidget(back_btn)
+        self.layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         self.layout.addWidget(title)
 
         current_user = self.get_current_user_callback()
@@ -1818,6 +1820,7 @@ class AuthGatePage(QWidget):
             QPushButton { background-color: #10b981; color: white; border-radius: 10px; font-weight: bold; border: none; }
             QPushButton:hover { background-color: #059669; }
         """)
+        self.btn_back_login.setFixedWidth(120)
         self.btn_back_login.setStyleSheet("""
             QPushButton { background-color: white; color: #334155; border-radius: 10px; border: 1px solid #cbd5e1; font-weight: bold; }
             QPushButton:hover { background-color: #f8fafc; }
@@ -1846,7 +1849,7 @@ class AuthGatePage(QWidget):
         reset_box_layout.addWidget(self.reset_code_input)
         reset_box_layout.addWidget(self.reset_new_password_input)
         reset_box_layout.addWidget(self.btn_confirm_reset)
-        reset_box_layout.addWidget(self.btn_back_login)
+        reset_box_layout.addWidget(self.btn_back_login, alignment=Qt.AlignLeft)
 
         self.btn_login.clicked.connect(self.handle_login)
         self.btn_register.clicked.connect(self.handle_register)
@@ -1984,15 +1987,16 @@ class ProfilePage(QWidget):
         self.clear_layout()
 
         back_btn = QPushButton("← Về")
-        back_btn.setFixedHeight(40)
-        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.92); color: #1e2a56; border-radius: 20px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 14px;")
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.92); color: #1e2a56; border-radius: 17px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 10px;")
         back_btn.clicked.connect(self.back_callback)
 
         title = QLabel("👤 Trang hồ sơ người dùng")
         title.setFont(QFont("Arial", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: white;")
-        self.layout.addWidget(back_btn)
+        self.layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         self.layout.addWidget(title)
 
         current_user = self.get_current_user_callback()
