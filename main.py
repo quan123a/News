@@ -1267,6 +1267,64 @@ class GroupPage(QWidget):
         )
         return label
 
+    def _open_group_post_detail(self, group_name, post):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Chi tiết bài viết nhóm")
+        dialog.setMinimumWidth(760)
+        dialog.setStyleSheet("background-color: #0f172a;")
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(10)
+
+        group_label = QLabel(f"👥 {group_name}")
+        group_label.setStyleSheet("color: #93c5fd; font-size: 13px; font-weight: bold;")
+
+        title = QLabel(post.get("title", ""))
+        title.setWordWrap(True)
+        title.setStyleSheet("color: white; font-size: 22px; font-weight: 900;")
+
+        author = post.get("author", "Ẩn danh")
+        date_text = post.get("date", "")
+        meta = QLabel(f"👤 {author} · 🗓 {date_text}")
+        meta.setStyleSheet("color: #cbd5e1; font-size: 12px;")
+
+        content = QLabel(post.get("content", ""))
+        content.setWordWrap(True)
+        content.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        content.setStyleSheet(
+            "color: #e2e8f0; font-size: 14px; line-height: 1.45;"
+            "background-color: rgba(255,255,255,0.07);"
+            "border: 1px solid rgba(255,255,255,0.2);"
+            "border-radius: 12px;"
+            "padding: 14px;"
+        )
+
+        layout.addWidget(group_label)
+        layout.addWidget(title)
+        layout.addWidget(meta)
+
+        image_path = post.get("image", "")
+        if image_path:
+            image = QLabel()
+            image.setAlignment(Qt.AlignCenter)
+            pixmap = QPixmap(image_path)
+            if not pixmap.isNull():
+                image.setPixmap(pixmap.scaledToWidth(680, Qt.SmoothTransformation))
+                layout.addWidget(image)
+
+        layout.addWidget(content)
+
+        close_btn = QPushButton("Đóng")
+        close_btn.setStyleSheet(self.primary_btn_style)
+        close_btn.clicked.connect(dialog.accept)
+        close_row = QHBoxLayout()
+        close_row.addStretch()
+        close_row.addWidget(close_btn)
+        layout.addLayout(close_row)
+
+        dialog.exec_()
+
     def render_ui(self):
         while self.layout.count():
             item = self.layout.takeAt(0)
@@ -1537,6 +1595,13 @@ class GroupPage(QWidget):
                     lbl.setStyleSheet("color:white;")
                     lbl.setWordWrap(True)
                     prow_layout.addWidget(lbl, 1)
+
+                    btn_view_post = QPushButton("Xem bài")
+                    btn_view_post.setStyleSheet(self.primary_btn_style)
+                    btn_view_post.clicked.connect(
+                        lambda _, gname=group.get("name", "Nhóm"), post=gp: self._open_group_post_detail(gname, post)
+                    )
+                    prow_layout.addWidget(btn_view_post)
 
                     can_delete = is_manager and (is_owner or gp.get("author") != owner)
                     if can_delete:
