@@ -1252,10 +1252,11 @@ class GroupPage(QWidget):
             QPushButton {
                 background-color: rgba(255,255,255,0.94);
                 color: #1e2a56;
-                border-radius: 18px;
+                border-radius: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 1px solid rgba(255,255,255,0.45);
-                padding: 7px 14px;
+                padding: 6px 10px;
             }
             QPushButton:hover {
                 background-color: #dbe4ff;
@@ -1268,10 +1269,11 @@ class GroupPage(QWidget):
             QPushButton {
                 background-color: #1cc88a;
                 color: white;
-                border-radius: 18px;
+                border-radius: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 1px solid rgba(255,255,255,0.35);
-                padding: 7px 14px;
+                padding: 6px 10px;
             }
             QPushButton:hover { background-color: #17a673; }
             QPushButton:pressed { background-color: #13855c; }
@@ -1280,10 +1282,11 @@ class GroupPage(QWidget):
             QPushButton {
                 background-color: #e74a3b;
                 color: white;
-                border-radius: 18px;
+                border-radius: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 1px solid rgba(255,255,255,0.35);
-                padding: 7px 14px;
+                padding: 6px 10px;
             }
             QPushButton:hover { background-color: #d83b2e; }
             QPushButton:pressed { background-color: #bf3327; }
@@ -1374,6 +1377,60 @@ class GroupPage(QWidget):
         create_layout.addWidget(self.new_group_name, 1)
         create_layout.addWidget(btn_create_group)
         self.layout.addWidget(create_card)
+
+        joined_groups = [g for g in groups if current_user in g.get("members", [])]
+        if joined_groups:
+            quick_post_card = QFrame()
+            quick_post_card.setStyleSheet("""
+                QFrame {
+                    background-color: rgba(0,0,0,0.24);
+                    border: 1px solid rgba(255,255,255,0.35);
+                    border-radius: 16px;
+                    padding: 10px;
+                }
+            """)
+            quick_layout = QVBoxLayout(quick_post_card)
+            quick_layout.setSpacing(8)
+            quick_layout.addWidget(self._build_section_title("📝 Đăng bài nhanh vào nhóm"))
+
+            self.quick_group_combo = QComboBox()
+            self.quick_group_combo.setStyleSheet("background-color: white; border-radius: 8px; padding: 6px;")
+            for grp in joined_groups:
+                self.quick_group_combo.addItem(grp.get("name", "Nhóm"), grp.get("id"))
+
+            self.quick_post_title = QLineEdit()
+            self.quick_post_title.setPlaceholderText("Tiêu đề bài viết...")
+            self.quick_post_title.setFixedHeight(38)
+            self.quick_post_title.setStyleSheet("""
+                QLineEdit {
+                    background-color: rgba(255,255,255,0.95);
+                    border-radius: 10px;
+                    padding: 0 12px;
+                    border: 1px solid rgba(0,0,0,0.1);
+                }
+            """)
+
+            self.quick_post_content = QTextEdit()
+            self.quick_post_content.setPlaceholderText("Nội dung bài viết trong nhóm...")
+            self.quick_post_content.setFixedHeight(80)
+            self.quick_post_content.setStyleSheet("""
+                QTextEdit {
+                    background-color: rgba(255,255,255,0.95);
+                    border-radius: 10px;
+                    padding: 10px;
+                    border: 1px solid rgba(0,0,0,0.1);
+                }
+            """)
+
+            btn_quick_post = QPushButton("Đăng vào nhóm đã chọn")
+            btn_quick_post.setStyleSheet(self.green_btn_style)
+            btn_quick_post.clicked.connect(self.handle_quick_group_post)
+
+            quick_layout.addWidget(self.quick_group_combo)
+            quick_layout.addWidget(self.quick_post_title)
+            quick_layout.addWidget(self.quick_post_content)
+            quick_layout.addWidget(btn_quick_post)
+            self.layout.addWidget(quick_post_card)
 
         if not groups:
             empty = QLabel("Chưa có group nào. Hãy tạo group đầu tiên!")
@@ -1483,50 +1540,6 @@ class GroupPage(QWidget):
 
                 card_layout.addWidget(owner_box)
 
-            if is_member:
-                post_box = QFrame()
-                post_box.setStyleSheet("""
-                    QFrame {
-                        background-color: rgba(255,255,255,0.08);
-                        border-radius: 12px;
-                        border: 1px solid rgba(255,255,255,0.22);
-                        padding: 10px;
-                    }
-                """)
-                post_layout = QVBoxLayout(post_box)
-                post_layout.setSpacing(8)
-                post_layout.addWidget(self._build_section_title("📝 Đăng bài trong group"))
-
-                post_title = QLineEdit()
-                post_title.setPlaceholderText("Tiêu đề bài viết trong nhóm...")
-                post_title.setFixedHeight(40)
-                post_title.setStyleSheet("""
-                    QLineEdit {
-                        background-color: rgba(255,255,255,0.95);
-                        border-radius: 10px;
-                        padding: 0 12px;
-                        border: 1px solid rgba(0,0,0,0.1);
-                    }
-                """)
-                post_content = QTextEdit()
-                post_content.setPlaceholderText("Nội dung bài viết trong nhóm...")
-                post_content.setFixedHeight(90)
-                post_content.setStyleSheet("""
-                    QTextEdit {
-                        background-color: rgba(255,255,255,0.95);
-                        border-radius: 10px;
-                        padding: 10px;
-                        border: 1px solid rgba(0,0,0,0.1);
-                    }
-                """)
-                btn_post = QPushButton("📝 Đăng vào group")
-                btn_post.setStyleSheet(self.green_btn_style)
-                btn_post.clicked.connect(lambda _, gid=group.get("id"), t=post_title, c=post_content: self.handle_group_post(gid, t, c))
-                post_layout.addWidget(post_title)
-                post_layout.addWidget(post_content)
-                post_layout.addWidget(btn_post)
-                card_layout.addWidget(post_box)
-
             if is_manager and pending:
                 card_layout.addWidget(self._build_section_title("✅ Yêu cầu tham gia chờ duyệt"))
                 for username in list(pending):
@@ -1558,13 +1571,13 @@ class GroupPage(QWidget):
                     row.addWidget(role_label, 1)
 
                     if is_owner:
-                        btn_deputy = QPushButton("Bổ nhiệm/Thu hồi phó")
+                        btn_deputy = QPushButton("Phó nhóm")
                         btn_deputy.setStyleSheet(self.primary_btn_style)
                         btn_deputy.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_toggle_deputy(gid, u))
                         row.addWidget(btn_deputy)
 
 
-                    btn_remove = QPushButton("Xóa khỏi nhóm")
+                    btn_remove = QPushButton("Xóa")
                     btn_remove.setStyleSheet(self.red_btn_style)
                     btn_remove.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_remove_member(gid, u))
                     row.addWidget(btn_remove)
@@ -1657,6 +1670,17 @@ class GroupPage(QWidget):
         ok, msg = self.leave_group_callback(group_id)
         self.show_message(msg, "success" if ok else "warning")
         if ok:
+            self.render_ui()
+
+    def handle_quick_group_post(self):
+        group_id = self.quick_group_combo.currentData()
+        title = self.quick_post_title.text().strip()
+        content = self.quick_post_content.toPlainText().strip()
+        ok, msg = self.create_group_post_callback(group_id, title, content)
+        self.show_message(msg, "success" if ok else "error")
+        if ok:
+            self.quick_post_title.clear()
+            self.quick_post_content.clear()
             self.render_ui()
 
     def handle_group_post(self, group_id, title_input, content_input):
@@ -3244,9 +3268,10 @@ class MainWindow(QWidget):
     def update_notification_badge(self):
         unread_count = self.get_unread_notifications_count()
         self.notify_badge.setText(str(unread_count))
-        self.notify_badge.setVisible(unread_count > 0 and not self.notification_panel.isVisible())
+        show_count = unread_count if not self.notification_panel.isVisible() else 0
+        self.notify_badge.setVisible(show_count > 0)
         if hasattr(self, "home") and self.home:
-            self.home.update_notify_badge(unread_count)
+            self.home.update_notify_badge(show_count)
 
     def position_notification_panel(self):
         anchor = self.notification_anchor_widget if self.notification_anchor_widget else self.notify_wrapper
@@ -3267,6 +3292,8 @@ class MainWindow(QWidget):
         self.notification_panel.show()
         self.notification_panel.raise_()
         self.notify_badge.setVisible(False)
+        if hasattr(self, "home") and self.home:
+            self.home.update_notify_badge(0)
 
     def hide_notification_panel(self):
         self.notification_panel.hide()
