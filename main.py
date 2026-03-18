@@ -2252,8 +2252,9 @@ class ProfilePage(QWidget):
             followers_count, following_count = self.get_follow_stats_callback(current_user)
 
             welcome_card = QFrame()
+            welcome_card.setObjectName("ProfileWelcomeCard")
             welcome_card.setStyleSheet("""
-                QFrame {
+                QFrame#ProfileWelcomeCard {
                     background-color: rgba(0,0,0,0.28);
                     border-radius: 16px;
                     border: 1px solid rgba(255,255,255,0.35);
