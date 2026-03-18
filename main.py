@@ -1199,6 +1199,7 @@ class GroupPage(QWidget):
         leave_group_callback,
         create_group_post_callback,
         delete_group_post_callback,
+        view_group_post_callback,
         back_callback,
     ):
         super().__init__()
@@ -1214,6 +1215,7 @@ class GroupPage(QWidget):
         self.leave_group_callback = leave_group_callback
         self.create_group_post_callback = create_group_post_callback
         self.delete_group_post_callback = delete_group_post_callback
+        self.view_group_post_callback = view_group_post_callback
         self.back_callback = back_callback
 
         self.primary_btn_style = """
@@ -1538,7 +1540,7 @@ class GroupPage(QWidget):
                     row.addWidget(btn_remove)
                     card_layout.addLayout(row)
 
-            if group_posts:
+            if is_member and group_posts:
                 card_layout.addWidget(self._build_section_title("📚 Bài viết trong group"))
                 for gp in group_posts:
                     prow = QFrame()
@@ -1556,6 +1558,11 @@ class GroupPage(QWidget):
                     lbl.setWordWrap(True)
                     prow_layout.addWidget(lbl, 1)
 
+                    btn_view = QPushButton("Xem")
+                    btn_view.setStyleSheet(self.primary_btn_style)
+                    btn_view.clicked.connect(lambda _, post=gp: self.handle_view_group_post(post))
+                    prow_layout.addWidget(btn_view)
+
                     can_delete = is_manager and (is_owner or gp.get("author") != owner)
                     if can_delete:
                         btn_del_post = QPushButton("Xóa bài")
@@ -1563,6 +1570,10 @@ class GroupPage(QWidget):
                         btn_del_post.clicked.connect(lambda _, gid=group.get("id"), pid=gp.get("id"): self.handle_delete_group_post(gid, pid))
                         prow_layout.addWidget(btn_del_post)
                     card_layout.addWidget(prow)
+            elif (not is_member) and group_posts:
+                hint = QLabel("🔒 Hãy tham gia nhóm để xem bài viết của nhóm.")
+                hint.setStyleSheet("color:#dbeafe; font-size:13px;")
+                card_layout.addWidget(hint)
 
             self.layout.addWidget(card)
 
@@ -1627,6 +1638,9 @@ class GroupPage(QWidget):
             title_input.clear()
             content_input.clear()
             self.render_ui()
+
+    def handle_view_group_post(self, group_post):
+        self.view_group_post_callback(group_post)
 
     def handle_delete_group_post(self, group_id, post_id):
         ok, msg = self.delete_group_post_callback(group_id, post_id)
@@ -2747,23 +2761,25 @@ class MainWindow(QWidget):
 
         self.notify_badge = QLabel("0")
         self.notify_badge.setAlignment(Qt.AlignCenter)
-        self.notify_badge.setFixedSize(24, 24)
+        self.notify_badge.setFixedSize(20, 20)
         self.notify_badge.setStyleSheet("""
             QLabel {
                 background-color: #e74a3b;
                 color: white;
-                border-radius: 12px;
-                font-size: 11px;
+                border: 1px solid rgba(255,255,255,0.85);
+                border-radius: 10px;
+                font-size: 10px;
                 font-weight: bold;
             }
         """)
 
         self.notify_wrapper = QFrame()
-        notify_layout = QHBoxLayout(self.notify_wrapper)
+        notify_layout = QGridLayout(self.notify_wrapper)
         notify_layout.setContentsMargins(0, 0, 0, 0)
-        notify_layout.setSpacing(6)
-        notify_layout.addWidget(self.btn_notify)
-        notify_layout.addWidget(self.notify_badge)
+        notify_layout.setHorizontalSpacing(0)
+        notify_layout.setVerticalSpacing(0)
+        notify_layout.addWidget(self.btn_notify, 0, 0, alignment=Qt.AlignCenter)
+        notify_layout.addWidget(self.notify_badge, 0, 0, alignment=Qt.AlignTop | Qt.AlignRight)
 
         self.btn_home.clicked.connect(self.show_home)
         self.btn_create.clicked.connect(self.show_create)
@@ -3194,7 +3210,7 @@ class MainWindow(QWidget):
             if not item.get("read", False):
                 unread_count += 1
         self.notify_badge.setText(str(unread_count))
-        self.notify_badge.setVisible(unread_count > 0)
+        self.notify_badge.setVisible(unread_count > 0 and not self.notification_panel.isVisible())
 
     def position_notification_panel(self):
         anchor = self.notification_anchor_widget if self.notification_anchor_widget else self.notify_wrapper
@@ -3214,9 +3230,11 @@ class MainWindow(QWidget):
         self.render_notifications()
         self.notification_panel.show()
         self.notification_panel.raise_()
+        self.notify_badge.setVisible(False)
 
     def hide_notification_panel(self):
         self.notification_panel.hide()
+        self.update_notification_badge()
 
     def toggle_notification_panel(self, source_widget=None):
         if source_widget is not None:
@@ -3733,6 +3751,19 @@ class MainWindow(QWidget):
         self.create_page = CreatePage(self.show_home, self.show_home, self.get_current_user, self.show_inline_message, self.notify_new_post_activity)
         self.content_area.addWidget(self.create_page)
 
+    def show_group_post_detail(self, group_post):
+        normalized_post = {
+            "id": group_post.get("id", generate_post_id()),
+            "title": group_post.get("title", ""),
+            "content": group_post.get("content", ""),
+            "date": group_post.get("date", now_text()),
+            "author": group_post.get("author", "Ẩn danh"),
+            "image": group_post.get("image", ""),
+            "likes": group_post.get("likes", []),
+            "comments": group_post.get("comments", []),
+        }
+        self.show_detail(normalized_post)
+
     def show_groups(self):
         self.clear_content()
         self.group_page = GroupPage(
@@ -3748,6 +3779,7 @@ class MainWindow(QWidget):
             self.leave_group,
             self.create_group_post,
             self.delete_group_post,
+            self.show_group_post_detail,
             self.show_home,
         )
         self.content_area.addWidget(self.group_page)
