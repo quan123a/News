@@ -11,10 +11,10 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel,
     QPushButton, QScrollArea, QFrame, QHBoxLayout, QGridLayout,
     QTextEdit, QLineEdit, QFileDialog,
-    QDialog, QDialogButtonBox, QComboBox
+    QDialog, QDialogButtonBox, QComboBox, QStackedWidget
 )
 from PyQt5.QtGui import QPixmap, QFont, QPainter, QPainterPath, QColor, QPen
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QEvent
 
 
 # =======================
@@ -489,6 +489,7 @@ def normalize_group(raw_group):
     return {
         "id": raw_group.get("id", str(uuid.uuid4())),
         "name": raw_group.get("name", "Nhóm chưa đặt tên"),
+        "avatar": raw_group.get("avatar", ""),
         "owner": owner,
         "deputies": list(dict.fromkeys([u for u in deputies if isinstance(u, str) and u != owner])),
         "members": list(dict.fromkeys([u for u in members if isinstance(u, str)])),
@@ -611,6 +612,7 @@ class HomePage(QWidget):
         show_groups_callback,
         show_message_callback,
         toggle_notifications_callback,
+        get_unread_notifications_count_callback,
     ):
         super().__init__()
         self.open_detail_callback = open_detail_callback
@@ -621,6 +623,7 @@ class HomePage(QWidget):
         self.show_groups_callback = show_groups_callback
         self.show_message = show_message_callback
         self.toggle_notifications_callback = toggle_notifications_callback
+        self.get_unread_notifications_count_callback = get_unread_notifications_count_callback
 
         root_layout = QHBoxLayout(self)
         root_layout.setContentsMargins(18, 14, 18, 14)
@@ -644,8 +647,45 @@ class HomePage(QWidget):
         app_sub = QLabel("Ứng dụng tin tức desktop")
         app_sub.setStyleSheet("color:#475569; font-size:12px;")
 
-        self.btn_notify = QPushButton("🔔 Trung tâm thông báo")
-        self.btn_notify.clicked.connect(self.toggle_notifications_callback)
+        self.btn_notify = QPushButton("🔔")
+        self.btn_notify.setFixedSize(46, 42)
+        self.btn_notify.setStyleSheet("""
+            QPushButton {
+                background-color: #4f46e5;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3730a3;
+            }
+        """)
+        self.btn_notify.clicked.connect(lambda: self.toggle_notifications_callback(self.btn_notify))
+
+        self.home_notify_badge = QLabel("0")
+        self.home_notify_badge.setAlignment(Qt.AlignCenter)
+        self.home_notify_badge.setFixedSize(18, 18)
+        self.home_notify_badge.setStyleSheet("""
+            QLabel {
+                background-color: #e74a3b;
+                color: white;
+                border: 1px solid rgba(255,255,255,0.9);
+                border-radius: 9px;
+                font-size: 9px;
+                font-weight: bold;
+            }
+        """)
+
+        self.notify_btn_wrap = QFrame()
+        notify_btn_wrap_layout = QGridLayout(self.notify_btn_wrap)
+        notify_btn_wrap_layout.setContentsMargins(0, 0, 0, 0)
+        notify_btn_wrap_layout.setHorizontalSpacing(0)
+        notify_btn_wrap_layout.setVerticalSpacing(0)
+        notify_btn_wrap_layout.addWidget(self.btn_notify, 0, 0, alignment=Qt.AlignCenter)
+        notify_btn_wrap_layout.addWidget(self.home_notify_badge, 0, 0, alignment=Qt.AlignTop | Qt.AlignRight)
+
         self.btn_create = QPushButton("✍️ Tạo bài mới")
         self.btn_create.clicked.connect(self.show_create_callback)
         self.btn_profile = QPushButton("👤 Hồ sơ cá nhân")
@@ -654,7 +694,6 @@ class HomePage(QWidget):
         self.btn_groups.clicked.connect(self.show_groups_callback)
 
         for btn, color in [
-            (self.btn_notify, "#4f46e5"),
             (self.btn_create, "#0ea5e9"),
             (self.btn_profile, "#10b981"),
             (self.btn_groups, "#f59e0b"),
@@ -679,7 +718,10 @@ class HomePage(QWidget):
         side_layout.addWidget(app_name)
         side_layout.addWidget(app_sub)
         side_layout.addSpacing(6)
-        side_layout.addWidget(self.btn_notify)
+        notify_row = QHBoxLayout()
+        notify_row.addWidget(self.notify_btn_wrap)
+        notify_row.addStretch()
+        side_layout.addLayout(notify_row)
         side_layout.addWidget(self.btn_create)
         side_layout.addWidget(self.btn_profile)
         side_layout.addWidget(self.btn_groups)
@@ -739,6 +781,7 @@ class HomePage(QWidget):
         root_layout.addWidget(main_panel, 1)
 
         self.render_posts()
+        self.update_notify_badge(self.get_unread_notifications_count_callback())
 
     def clear_posts(self):
         while self.container_layout.count():
@@ -780,6 +823,10 @@ class HomePage(QWidget):
 
         self.container_layout.addStretch()
 
+    def update_notify_badge(self, unread_count):
+        self.home_notify_badge.setText(str(unread_count))
+        self.home_notify_badge.setVisible(unread_count > 0)
+
     def filter_posts(self, keyword):
         self.render_posts(keyword)
 
@@ -807,17 +854,17 @@ class DetailPage(QWidget):
 
         back_btn = QPushButton("← Quay lại")
         back_btn.clicked.connect(back_callback)
-        back_btn.setFixedWidth(190)
-        back_btn.setFixedHeight(46)
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
         back_btn.setStyleSheet("""
             QPushButton {
                 background-color: rgba(255, 255, 255, 0.94);
                 color: #1e2a56;
-                border-radius: 23px;
-                font-size: 14px;
+                border-radius: 17px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 2px solid rgba(30, 42, 86, 0.2);
-                padding: 0 18px;
+                padding: 0 10px;
             }
             QPushButton:hover {
                 background-color: #dbe4ff;
@@ -919,7 +966,7 @@ class DetailPage(QWidget):
         comment_row.addWidget(self.comment_input, 1)
         comment_row.addWidget(comment_btn)
 
-        layout.addWidget(back_btn)
+        layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         layout.addWidget(title)
         layout.addWidget(meta_box)
         layout.addWidget(image_label)
@@ -1040,8 +1087,9 @@ class CreatePage(QWidget):
         layout.setSpacing(20)
 
         back_btn = QPushButton("← Quay lại")
-        back_btn.setFixedHeight(40)
-        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 20px; padding: 0 14px; font-weight: bold;")
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 17px; padding: 0 10px; font-weight: bold;")
         back_btn.clicked.connect(self.back_callback)
 
         title_label = QLabel("✍ Tạo bài viết mới")
@@ -1122,7 +1170,7 @@ class CreatePage(QWidget):
         """)
         publish_btn.clicked.connect(self.publish_post)
 
-        layout.addWidget(back_btn)
+        layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         layout.addWidget(title_label)
         layout.addWidget(self.title_input)
         layout.addWidget(self.content_input)
@@ -1182,6 +1230,9 @@ class GroupPage(QWidget):
         leave_group_callback,
         create_group_post_callback,
         delete_group_post_callback,
+        edit_group_post_callback,
+        update_group_avatar_callback,
+        view_group_post_callback,
         back_callback,
     ):
         super().__init__()
@@ -1197,16 +1248,21 @@ class GroupPage(QWidget):
         self.leave_group_callback = leave_group_callback
         self.create_group_post_callback = create_group_post_callback
         self.delete_group_post_callback = delete_group_post_callback
+        self.edit_group_post_callback = edit_group_post_callback
+        self.update_group_avatar_callback = update_group_avatar_callback
+        self.view_group_post_callback = view_group_post_callback
         self.back_callback = back_callback
+        self.selected_group_id = None
 
         self.primary_btn_style = """
             QPushButton {
                 background-color: rgba(255,255,255,0.94);
                 color: #1e2a56;
-                border-radius: 18px;
+                border-radius: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 1px solid rgba(255,255,255,0.45);
-                padding: 7px 14px;
+                padding: 6px 10px;
             }
             QPushButton:hover {
                 background-color: #dbe4ff;
@@ -1219,10 +1275,11 @@ class GroupPage(QWidget):
             QPushButton {
                 background-color: #1cc88a;
                 color: white;
-                border-radius: 18px;
+                border-radius: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 1px solid rgba(255,255,255,0.35);
-                padding: 7px 14px;
+                padding: 6px 10px;
             }
             QPushButton:hover { background-color: #17a673; }
             QPushButton:pressed { background-color: #13855c; }
@@ -1231,10 +1288,11 @@ class GroupPage(QWidget):
             QPushButton {
                 background-color: #e74a3b;
                 color: white;
-                border-radius: 18px;
+                border-radius: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 1px solid rgba(255,255,255,0.35);
-                padding: 7px 14px;
+                padding: 6px 10px;
             }
             QPushButton:hover { background-color: #d83b2e; }
             QPushButton:pressed { background-color: #bf3327; }
@@ -1275,15 +1333,16 @@ class GroupPage(QWidget):
                 widget.deleteLater()
 
         back_btn = QPushButton("← Quay lại")
-        back_btn.setFixedHeight(40)
-        back_btn.setStyleSheet(self.primary_btn_style)
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 17px; padding: 0 10px; font-weight: bold;")
         back_btn.clicked.connect(self.back_callback)
 
         title = QLabel("👥 Nhóm riêng")
         title.setFont(QFont("Arial", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color:white;")
-        self.layout.addWidget(back_btn)
+        self.layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         self.layout.addWidget(title)
 
         current_user = self.get_current_user_callback()
@@ -1325,46 +1384,119 @@ class GroupPage(QWidget):
         create_layout.addWidget(btn_create_group)
         self.layout.addWidget(create_card)
 
+        board = QFrame()
+        board.setStyleSheet("""
+            QFrame {
+                background-color: rgba(0,0,0,0.22);
+                border: 1px solid rgba(255,255,255,0.30);
+                border-radius: 18px;
+            }
+        """)
+        board_layout = QHBoxLayout(board)
+        board_layout.setContentsMargins(12, 12, 12, 12)
+        board_layout.setSpacing(12)
+
+        list_panel = QFrame()
+        list_panel.setFixedWidth(300)
+        list_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.20);
+                border-radius: 16px;
+            }
+        """)
+        list_layout = QVBoxLayout(list_panel)
+        list_layout.setContentsMargins(10, 10, 10, 10)
+        list_layout.setSpacing(8)
+        list_layout.addWidget(self._build_section_title("💬 Danh sách nhóm"))
+
+        detail_panel = QFrame()
+        detail_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.07);
+                border: 1px solid rgba(255,255,255,0.20);
+                border-radius: 16px;
+            }
+        """)
+        detail_layout = QVBoxLayout(detail_panel)
+        detail_layout.setContentsMargins(12, 12, 12, 12)
+        detail_layout.setSpacing(10)
+
         if not groups:
             empty = QLabel("Chưa có group nào. Hãy tạo group đầu tiên!")
             empty.setStyleSheet("color: #eef2ff; font-size: 14px; padding: 10px;")
             empty.setAlignment(Qt.AlignCenter)
-            self.layout.addWidget(empty)
+            list_layout.addWidget(empty)
+            detail_layout.addWidget(QLabel(""))
+        else:
+            if not self.selected_group_id or not any(g.get("id") == self.selected_group_id for g in groups):
+                self.selected_group_id = groups[0].get("id")
 
-        for group in groups:
-            card = QFrame()
-            card.setStyleSheet("""
-                QFrame {
-                    background-color: rgba(0,0,0,0.30);
-                    border: 1px solid rgba(255,255,255,0.35);
-                    border-radius: 16px;
-                    padding: 12px;
-                }
-            """)
-            card_layout = QVBoxLayout(card)
-            card_layout.setSpacing(10)
+            selected_group = next((g for g in groups if g.get("id") == self.selected_group_id), groups[0])
+            self.selected_group_id = selected_group.get("id")
 
-            owner = group.get("owner", "Ẩn danh")
-            deputies = group.get("deputies", [])
-            members = group.get("members", [])
-            pending = group.get("pending_members", [])
-            group_posts = group.get("posts", [])
+            for group in groups:
+                owner = group.get("owner", "Ẩn danh")
+                members = group.get("members", [])
+                pending = group.get("pending_members", [])
+                joined = current_user in members
+                label = f"{group.get('name', 'Nhóm')}\n👥 {len(members)} thành viên"
+                if not joined and current_user in pending:
+                    label += " | ⏳ chờ duyệt"
+                elif joined:
+                    label += " | ✅ đã tham gia"
+                btn_group = QPushButton(label)
+                btn_group.setCursor(Qt.PointingHandCursor)
+                btn_group.setMinimumHeight(56)
+                btn_group.setStyleSheet(f"""
+                    QPushButton {{
+                        text-align: left;
+                        padding: 8px 12px;
+                        color: white;
+                        background-color: {'rgba(78,115,223,0.55)' if group.get('id') == self.selected_group_id else 'rgba(255,255,255,0.10)'};
+                        border: 1px solid {'rgba(255,255,255,0.70)' if group.get('id') == self.selected_group_id else 'rgba(255,255,255,0.20)'};
+                        border-radius: 14px;
+                        font-size: 12px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background-color: rgba(78,115,223,0.40);
+                    }}
+                """)
+                btn_group.clicked.connect(lambda _, gid=group.get("id"): self.handle_select_group(gid))
+                list_layout.addWidget(btn_group)
+            list_layout.addStretch()
 
-            head = QLabel(f"📌 {group.get('name', 'Nhóm')} | Trưởng nhóm: {owner} | Thành viên: {len(members)}")
-            head.setStyleSheet(
-                "color:white; font-size:16px; font-weight:bold;"
-                "padding: 8px 10px;"
-                "background-color: rgba(255,255,255,0.08);"
-                "border-radius: 12px;"
-                "border: 1px solid rgba(255,255,255,0.25);"
-            )
-            head.setWordWrap(True)
-            card_layout.addWidget(head)
-
+            owner = selected_group.get("owner", "Ẩn danh")
+            deputies = selected_group.get("deputies", [])
+            members = selected_group.get("members", [])
+            pending = selected_group.get("pending_members", [])
+            group_posts = selected_group.get("posts", [])
             is_owner = current_user == owner
             is_deputy = current_user in deputies
             is_manager = is_owner or is_deputy
             is_member = current_user in members
+
+            head_box = QFrame()
+            head_box.setStyleSheet("background-color: rgba(255,255,255,0.08); border-radius: 12px; border: 1px solid rgba(255,255,255,0.25);")
+            head_layout = QHBoxLayout(head_box)
+            head_layout.setContentsMargins(10, 10, 10, 10)
+            head_layout.setSpacing(10)
+            head_layout.addWidget(build_avatar_label(selected_group.get("avatar", ""), 54))
+            head_text = QVBoxLayout()
+            head = QLabel(f"📌 {selected_group.get('name', 'Nhóm')}")
+            head.setStyleSheet("color:white; font-size:16px; font-weight:bold;")
+            head_meta = QLabel(f"Trưởng nhóm: {owner} | Thành viên: {len(members)}")
+            head_meta.setStyleSheet("color:#dbeafe; font-size:12px; font-weight:bold;")
+            head_text.addWidget(head)
+            head_text.addWidget(head_meta)
+            head_layout.addLayout(head_text, 1)
+            if is_manager:
+                btn_group_avatar = QPushButton("Ảnh nhóm")
+                btn_group_avatar.setStyleSheet(self.primary_btn_style)
+                btn_group_avatar.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_update_group_avatar(gid))
+                head_layout.addWidget(btn_group_avatar)
+            detail_layout.addWidget(head_box)
 
             action_row = QHBoxLayout()
             action_row.setSpacing(8)
@@ -1376,16 +1508,45 @@ class GroupPage(QWidget):
                 else:
                     btn_join = QPushButton("Xin vào nhóm")
                     btn_join.setStyleSheet(self.primary_btn_style)
-                    btn_join.clicked.connect(lambda _, gid=group.get("id"): self.handle_join_request(gid))
+                    btn_join.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_join_request(gid))
                     action_row.addWidget(btn_join)
             else:
                 btn_leave = QPushButton("Rời nhóm")
                 btn_leave.setStyleSheet(self.primary_btn_style)
-                btn_leave.clicked.connect(lambda _, gid=group.get("id"): self.handle_leave_group(gid))
+                btn_leave.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_leave_group(gid))
                 action_row.addWidget(btn_leave)
-
             action_row.addStretch()
-            card_layout.addLayout(action_row)
+            detail_layout.addLayout(action_row)
+
+            if is_member:
+                post_box = QFrame()
+                post_box.setStyleSheet("""
+                    QFrame {
+                        background-color: rgba(255,255,255,0.08);
+                        border-radius: 12px;
+                        border: 1px solid rgba(255,255,255,0.22);
+                        padding: 10px;
+                    }
+                """)
+                post_layout = QVBoxLayout(post_box)
+                post_layout.setSpacing(8)
+                post_layout.addWidget(self._build_section_title(f"📝 Đăng bài vào: {selected_group.get('name', 'Nhóm')}"))
+
+                self.group_post_title = QLineEdit()
+                self.group_post_title.setPlaceholderText("Tiêu đề bài viết...")
+                self.group_post_title.setFixedHeight(38)
+                self.group_post_title.setStyleSheet("background-color: rgba(255,255,255,0.95); border-radius: 10px; padding: 0 12px; border: 1px solid rgba(0,0,0,0.1);")
+                self.group_post_content = QTextEdit()
+                self.group_post_content.setPlaceholderText("Nội dung bài viết trong nhóm...")
+                self.group_post_content.setFixedHeight(90)
+                self.group_post_content.setStyleSheet("background-color: rgba(255,255,255,0.95); border-radius: 10px; padding: 10px; border: 1px solid rgba(0,0,0,0.1);")
+                btn_post = QPushButton("Đăng vào nhóm đang chọn")
+                btn_post.setStyleSheet(self.green_btn_style)
+                btn_post.clicked.connect(lambda _, gid=selected_group.get("id"), t=self.group_post_title, c=self.group_post_content: self.handle_group_post(gid, t, c))
+                post_layout.addWidget(self.group_post_title)
+                post_layout.addWidget(self.group_post_content)
+                post_layout.addWidget(btn_post)
+                detail_layout.addWidget(post_box)
 
             if is_owner:
                 owner_box = QFrame()
@@ -1404,17 +1565,12 @@ class GroupPage(QWidget):
                 transfer_row = QHBoxLayout()
                 transfer_options = [u for u in members if u != owner]
                 if transfer_options:
-                    transfer_label = QLabel("Nhường trưởng nhóm cho:")
-                    transfer_label.setStyleSheet("color: white; font-weight: bold;")
                     transfer_combo = QComboBox()
                     transfer_combo.addItems(transfer_options)
                     transfer_combo.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
                     transfer_btn = QPushButton("Nhường trưởng nhóm")
                     transfer_btn.setStyleSheet(self.primary_btn_style)
-                    transfer_btn.clicked.connect(
-                        lambda _, gid=group.get("id"), c=transfer_combo: self.handle_transfer_owner(gid, c.currentText())
-                    )
-                    transfer_row.addWidget(transfer_label)
+                    transfer_btn.clicked.connect(lambda _, gid=selected_group.get("id"), c=transfer_combo: self.handle_transfer_owner(gid, c.currentText()))
                     transfer_row.addWidget(transfer_combo, 1)
                     transfer_row.addWidget(transfer_btn)
                 else:
@@ -1423,62 +1579,14 @@ class GroupPage(QWidget):
                     transfer_row.addWidget(no_member)
                 owner_layout.addLayout(transfer_row)
 
-                dissolve_row = QHBoxLayout()
                 dissolve_btn = QPushButton("Giải tán nhóm")
                 dissolve_btn.setStyleSheet(self.red_btn_style)
-                dissolve_btn.clicked.connect(lambda _, gid=group.get("id"): self.handle_dissolve_group(gid))
-                dissolve_row.addWidget(dissolve_btn)
-                dissolve_row.addStretch()
-                owner_layout.addLayout(dissolve_row)
-
-                card_layout.addWidget(owner_box)
-
-            if is_member:
-                post_box = QFrame()
-                post_box.setStyleSheet("""
-                    QFrame {
-                        background-color: rgba(255,255,255,0.08);
-                        border-radius: 12px;
-                        border: 1px solid rgba(255,255,255,0.22);
-                        padding: 10px;
-                    }
-                """)
-                post_layout = QVBoxLayout(post_box)
-                post_layout.setSpacing(8)
-                post_layout.addWidget(self._build_section_title("📝 Đăng bài trong group"))
-
-                post_title = QLineEdit()
-                post_title.setPlaceholderText("Tiêu đề bài viết trong nhóm...")
-                post_title.setFixedHeight(40)
-                post_title.setStyleSheet("""
-                    QLineEdit {
-                        background-color: rgba(255,255,255,0.95);
-                        border-radius: 10px;
-                        padding: 0 12px;
-                        border: 1px solid rgba(0,0,0,0.1);
-                    }
-                """)
-                post_content = QTextEdit()
-                post_content.setPlaceholderText("Nội dung bài viết trong nhóm...")
-                post_content.setFixedHeight(90)
-                post_content.setStyleSheet("""
-                    QTextEdit {
-                        background-color: rgba(255,255,255,0.95);
-                        border-radius: 10px;
-                        padding: 10px;
-                        border: 1px solid rgba(0,0,0,0.1);
-                    }
-                """)
-                btn_post = QPushButton("📝 Đăng vào group")
-                btn_post.setStyleSheet(self.green_btn_style)
-                btn_post.clicked.connect(lambda _, gid=group.get("id"), t=post_title, c=post_content: self.handle_group_post(gid, t, c))
-                post_layout.addWidget(post_title)
-                post_layout.addWidget(post_content)
-                post_layout.addWidget(btn_post)
-                card_layout.addWidget(post_box)
+                dissolve_btn.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_dissolve_group(gid))
+                owner_layout.addWidget(dissolve_btn, alignment=Qt.AlignLeft)
+                detail_layout.addWidget(owner_box)
 
             if is_manager and pending:
-                card_layout.addWidget(self._build_section_title("✅ Yêu cầu tham gia chờ duyệt"))
+                detail_layout.addWidget(self._build_section_title("✅ Yêu cầu tham gia"))
                 for username in list(pending):
                     row = QHBoxLayout()
                     name = QLabel(f"• {username}")
@@ -1488,40 +1596,36 @@ class GroupPage(QWidget):
                     reject = QPushButton("Từ chối")
                     approve.setStyleSheet(self.green_btn_style)
                     reject.setStyleSheet(self.red_btn_style)
-                    approve.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_review_request(gid, u, True))
-                    reject.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_review_request(gid, u, False))
+                    approve.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_review_request(gid, u, True))
+                    reject.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_review_request(gid, u, False))
                     row.addWidget(approve)
                     row.addWidget(reject)
-                    card_layout.addLayout(row)
+                    detail_layout.addLayout(row)
 
             if is_manager and members:
-                card_layout.addWidget(self._build_section_title("👤 Quản lý thành viên"))
+                detail_layout.addWidget(self._build_section_title("👤 Thành viên"))
                 for username in list(members):
                     if username == owner:
                         continue
-
                     row = QHBoxLayout()
                     row.setSpacing(8)
                     role_text = "Phó nhóm" if username in deputies else "Thành viên"
                     role_label = QLabel(f"• {username} ({role_text})")
                     role_label.setStyleSheet("color:white; font-weight:bold;")
                     row.addWidget(role_label, 1)
-
                     if is_owner:
-                        btn_deputy = QPushButton("Bổ nhiệm/Thu hồi phó")
+                        btn_deputy = QPushButton("Phó nhóm")
                         btn_deputy.setStyleSheet(self.primary_btn_style)
-                        btn_deputy.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_toggle_deputy(gid, u))
+                        btn_deputy.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_toggle_deputy(gid, u))
                         row.addWidget(btn_deputy)
-
-
-                    btn_remove = QPushButton("Xóa khỏi nhóm")
+                    btn_remove = QPushButton("Xóa")
                     btn_remove.setStyleSheet(self.red_btn_style)
-                    btn_remove.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_remove_member(gid, u))
+                    btn_remove.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_remove_member(gid, u))
                     row.addWidget(btn_remove)
-                    card_layout.addLayout(row)
+                    detail_layout.addLayout(row)
 
-            if group_posts:
-                card_layout.addWidget(self._build_section_title("📚 Bài viết trong group"))
+            if is_member and group_posts:
+                detail_layout.addWidget(self._build_section_title("📚 Bài viết trong nhóm"))
                 for gp in group_posts:
                     prow = QFrame()
                     prow.setStyleSheet("""
@@ -1537,18 +1641,38 @@ class GroupPage(QWidget):
                     lbl.setStyleSheet("color:white;")
                     lbl.setWordWrap(True)
                     prow_layout.addWidget(lbl, 1)
-
+                    btn_view = QPushButton("Xem")
+                    btn_view.setStyleSheet(self.primary_btn_style)
+                    btn_view.clicked.connect(lambda _, post=gp: self.handle_view_group_post(post))
+                    prow_layout.addWidget(btn_view)
+                    can_edit = is_manager or gp.get("author") == current_user
+                    if can_edit:
+                        btn_edit_post = QPushButton("Sửa")
+                        btn_edit_post.setStyleSheet(self.primary_btn_style)
+                        btn_edit_post.clicked.connect(lambda _, gid=selected_group.get("id"), post=gp: self.handle_edit_group_post(gid, post))
+                        prow_layout.addWidget(btn_edit_post)
                     can_delete = is_manager and (is_owner or gp.get("author") != owner)
                     if can_delete:
                         btn_del_post = QPushButton("Xóa bài")
                         btn_del_post.setStyleSheet(self.red_btn_style)
-                        btn_del_post.clicked.connect(lambda _, gid=group.get("id"), pid=gp.get("id"): self.handle_delete_group_post(gid, pid))
+                        btn_del_post.clicked.connect(lambda _, gid=selected_group.get("id"), pid=gp.get("id"): self.handle_delete_group_post(gid, pid))
                         prow_layout.addWidget(btn_del_post)
-                    card_layout.addWidget(prow)
+                    detail_layout.addWidget(prow)
+            elif (not is_member) and group_posts:
+                hint = QLabel("🔒 Hãy tham gia nhóm để xem bài viết của nhóm.")
+                hint.setStyleSheet("color:#dbeafe; font-size:13px;")
+                detail_layout.addWidget(hint)
 
-            self.layout.addWidget(card)
+            detail_layout.addStretch()
 
+        board_layout.addWidget(list_panel)
+        board_layout.addWidget(detail_panel, 1)
+        self.layout.addWidget(board)
         self.layout.addStretch()
+
+    def handle_select_group(self, group_id):
+        self.selected_group_id = group_id
+        self.render_ui()
 
     def handle_create_group(self):
         name = self.new_group_name.text().strip()
@@ -1600,6 +1724,17 @@ class GroupPage(QWidget):
         if ok:
             self.render_ui()
 
+    def handle_quick_group_post(self):
+        group_id = self.quick_group_combo.currentData()
+        title = self.quick_post_title.text().strip()
+        content = self.quick_post_content.toPlainText().strip()
+        ok, msg = self.create_group_post_callback(group_id, title, content)
+        self.show_message(msg, "success" if ok else "error")
+        if ok:
+            self.quick_post_title.clear()
+            self.quick_post_content.clear()
+            self.render_ui()
+
     def handle_group_post(self, group_id, title_input, content_input):
         title = title_input.text().strip()
         content = content_input.toPlainText().strip()
@@ -1608,6 +1743,28 @@ class GroupPage(QWidget):
         if ok:
             title_input.clear()
             content_input.clear()
+            self.render_ui()
+
+    def handle_view_group_post(self, group_post):
+        self.view_group_post_callback(group_post)
+
+    def handle_update_group_avatar(self, group_id):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Chọn ảnh nhóm", "", "Images (*.png *.jpg *.jpeg)")
+        if not file_path:
+            return
+        ok, msg = self.update_group_avatar_callback(group_id, file_path)
+        self.show_message(msg, "success" if ok else "error")
+        if ok:
+            self.render_ui()
+
+    def handle_edit_group_post(self, group_id, group_post):
+        dialog = EditPostDialog(group_post)
+        if dialog.exec_() != QDialog.Accepted:
+            return
+        title, content = dialog.get_data()
+        ok, msg = self.edit_group_post_callback(group_id, group_post.get("id"), title, content)
+        self.show_message(msg, "success" if ok else "error")
+        if ok:
             self.render_ui()
 
     def handle_delete_group_post(self, group_id, post_id):
@@ -1793,7 +1950,7 @@ class AuthGatePage(QWidget):
 
         self.btn_send_code = QPushButton("Gửi mã xác thực")
         self.btn_confirm_reset = QPushButton("Đổi mật khẩu mới")
-        self.btn_back_login = QPushButton("← Quay lại đăng nhập")
+        self.btn_back_login = QPushButton("← Trở lại")
 
         for btn in [self.btn_login, self.btn_register, self.btn_forgot, self.btn_send_code, self.btn_confirm_reset, self.btn_back_login]:
             btn.setFixedHeight(40)
@@ -1818,6 +1975,7 @@ class AuthGatePage(QWidget):
             QPushButton { background-color: #10b981; color: white; border-radius: 10px; font-weight: bold; border: none; }
             QPushButton:hover { background-color: #059669; }
         """)
+        self.btn_back_login.setFixedWidth(120)
         self.btn_back_login.setStyleSheet("""
             QPushButton { background-color: white; color: #334155; border-radius: 10px; border: 1px solid #cbd5e1; font-weight: bold; }
             QPushButton:hover { background-color: #f8fafc; }
@@ -1846,7 +2004,7 @@ class AuthGatePage(QWidget):
         reset_box_layout.addWidget(self.reset_code_input)
         reset_box_layout.addWidget(self.reset_new_password_input)
         reset_box_layout.addWidget(self.btn_confirm_reset)
-        reset_box_layout.addWidget(self.btn_back_login)
+        reset_box_layout.addWidget(self.btn_back_login, alignment=Qt.AlignLeft)
 
         self.btn_login.clicked.connect(self.handle_login)
         self.btn_register.clicked.connect(self.handle_register)
@@ -1984,15 +2142,16 @@ class ProfilePage(QWidget):
         self.clear_layout()
 
         back_btn = QPushButton("← Quay lại")
-        back_btn.setFixedHeight(40)
-        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.92); color: #1e2a56; border-radius: 20px; font-weight: bold; border: 1px solid rgba(255,255,255,0.45); padding: 0 14px;")
+        back_btn.setFixedWidth(120)
+        back_btn.setFixedHeight(34)
+        back_btn.setStyleSheet("background-color: rgba(255,255,255,0.95); color: #1e2a56; border: 1px solid rgba(0,0,0,0.12); border-radius: 17px; padding: 0 10px; font-weight: bold;")
         back_btn.clicked.connect(self.back_callback)
 
         title = QLabel("👤 Trang hồ sơ người dùng")
         title.setFont(QFont("Arial", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: white;")
-        self.layout.addWidget(back_btn)
+        self.layout.addWidget(back_btn, alignment=Qt.AlignLeft)
         self.layout.addWidget(title)
 
         current_user = self.get_current_user_callback()
@@ -2093,8 +2252,9 @@ class ProfilePage(QWidget):
             followers_count, following_count = self.get_follow_stats_callback(current_user)
 
             welcome_card = QFrame()
+            welcome_card.setObjectName("ProfileWelcomeCard")
             welcome_card.setStyleSheet("""
-                QFrame {
+                QFrame#ProfileWelcomeCard {
                     background-color: rgba(0,0,0,0.28);
                     border-radius: 16px;
                     border: 1px solid rgba(255,255,255,0.35);
@@ -2102,10 +2262,20 @@ class ProfilePage(QWidget):
                 }
             """)
             welcome_layout = QVBoxLayout(welcome_card)
+            welcome_layout.setContentsMargins(18, 18, 18, 18)
+            welcome_layout.setSpacing(12)
 
             avatar_row = QHBoxLayout()
+            avatar_row.setContentsMargins(0, 4, 0, 4)
             avatar_row.setSpacing(12)
-            avatar_row.addWidget(build_avatar_label(self.get_user_avatar_callback(current_user), 82))
+
+            avatar_wrapper = QFrame()
+            avatar_wrapper.setFixedSize(94, 94)
+            avatar_wrapper.setStyleSheet("background: transparent; border: none;")
+            avatar_wrapper_layout = QVBoxLayout(avatar_wrapper)
+            avatar_wrapper_layout.setContentsMargins(6, 6, 6, 6)
+            avatar_wrapper_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(current_user), 82), alignment=Qt.AlignCenter)
+            avatar_row.addWidget(avatar_wrapper, 0, Qt.AlignVCenter)
 
             welcome_text = QVBoxLayout()
             welcome = QLabel(f"Xin chào, {current_user}!")
@@ -2116,7 +2286,6 @@ class ProfilePage(QWidget):
             welcome_text.addWidget(follow_info)
             avatar_row.addLayout(welcome_text)
             avatar_row.addStretch()
-
             welcome_layout.addLayout(avatar_row)
 
             action_row = QHBoxLayout()
@@ -2160,8 +2329,49 @@ class ProfilePage(QWidget):
             action_row.addWidget(btn_logout)
             action_row.addStretch()
             welcome_layout.addLayout(action_row)
-
             self.layout.addWidget(welcome_card)
+
+            feature_card = QFrame()
+            feature_card.setStyleSheet("""
+                QFrame {
+                    background-color: rgba(0,0,0,0.24);
+                    border-radius: 16px;
+                    border: 1px solid rgba(255,255,255,0.32);
+                    padding: 10px;
+                }
+            """)
+            feature_layout = QVBoxLayout(feature_card)
+            feature_layout.setSpacing(10)
+            feature_title = QLabel("⚙️ Tính năng hồ sơ")
+            feature_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+            feature_layout.addWidget(feature_title)
+
+            feature_btn_row = QHBoxLayout()
+            feature_btn_row.setSpacing(10)
+
+            section_buttons = []
+
+            def build_section_button(text):
+                btn = QPushButton(text)
+                btn.setFixedHeight(40)
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: rgba(255,255,255,0.92);
+                        color: #1e2a56;
+                        border-radius: 20px;
+                        font-weight: bold;
+                        border: 1px solid rgba(255,255,255,0.45);
+                        padding: 0 14px;
+                    }
+                    QPushButton:hover {
+                        background-color: #dbe4ff;
+                    }
+                """)
+                section_buttons.append(btn)
+                return btn
+
+            self.feature_stack = QStackedWidget()
+            self.feature_stack.setStyleSheet("border: none;")
 
             change_pwd_card = QFrame()
             change_pwd_card.setStyleSheet("""
@@ -2227,24 +2437,24 @@ class ProfilePage(QWidget):
             change_layout.addWidget(self.new_password_input)
             change_layout.addWidget(self.confirm_new_password_input)
             change_layout.addWidget(btn_change_pwd)
+            self.feature_stack.addWidget(change_pwd_card)
 
-            self.layout.addWidget(change_pwd_card)
-
+            follow_page = QWidget()
+            follow_layout = QVBoxLayout(follow_page)
+            follow_layout.setContentsMargins(0, 0, 0, 0)
+            follow_layout.setSpacing(10)
             discover_label = QLabel("🤝 Theo dõi người dùng")
             discover_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
-            self.layout.addWidget(discover_label)
-
+            follow_layout.addWidget(discover_label)
             for username in users.keys():
                 if username == current_user:
                     continue
                 row = QFrame()
                 row_layout = QHBoxLayout(row)
                 user_followers, _ = self.get_follow_stats_callback(username)
-
                 row_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(username), 34))
                 info = QLabel(f"{username} - 👥 {user_followers} followers")
                 info.setStyleSheet("color: white;")
-
                 following = current_user in follows and username in follows.get(current_user, [])
                 btn = QPushButton("Bỏ theo dõi" if following else "Theo dõi")
                 btn.setFixedHeight(38)
@@ -2264,18 +2474,22 @@ class ProfilePage(QWidget):
                 btn.clicked.connect(lambda _, target=username: self.handle_toggle_follow(target))
                 row_layout.addWidget(info, 1)
                 row_layout.addWidget(btn)
-                self.layout.addWidget(row)
+                follow_layout.addWidget(row)
+            follow_layout.addStretch()
+            self.feature_stack.addWidget(follow_page)
 
+            post_page = QWidget()
+            post_layout_main = QVBoxLayout(post_page)
+            post_layout_main.setContentsMargins(0, 0, 0, 0)
+            post_layout_main.setSpacing(10)
             my_posts_label = QLabel("📚 Quản lí bài viết của bạn")
             my_posts_label.setStyleSheet("color: white; font-size: 17px; font-weight: bold;")
-            self.layout.addWidget(my_posts_label)
-
+            post_layout_main.addWidget(my_posts_label)
             my_posts = [post for post in posts if post.get("author") == current_user]
-
             if not my_posts:
                 empty = QLabel("Bạn chưa đăng bài nào.")
                 empty.setStyleSheet("color: #f1f1f1;")
-                self.layout.addWidget(empty)
+                post_layout_main.addWidget(empty)
             else:
                 if self.editing_post:
                     edit_card = QFrame()
@@ -2288,15 +2502,12 @@ class ProfilePage(QWidget):
                         }
                     """)
                     edit_layout = QVBoxLayout(edit_card)
-
                     edit_title = QLabel("✏ Chỉnh sửa bài viết")
                     edit_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
-
                     self.edit_title_input = QLineEdit(self.editing_post.get("title", ""))
                     self.edit_title_input.setPlaceholderText("Tiêu đề")
                     self.edit_content_input = QTextEdit(self.editing_post.get("content", ""))
                     self.edit_content_input.setPlaceholderText("Nội dung")
-
                     self.edit_title_input.setStyleSheet("""
                         QLineEdit {
                             background-color: rgba(255,255,255,0.95);
@@ -2314,7 +2525,6 @@ class ProfilePage(QWidget):
                             min-height: 120px;
                         }
                     """)
-
                     edit_action_row = QHBoxLayout()
                     btn_save_edit = QPushButton("💾 Lưu")
                     btn_cancel_edit = QPushButton("✖ Hủy")
@@ -2333,18 +2543,16 @@ class ProfilePage(QWidget):
                                 background-color: rgba(255,255,255,0.28);
                             }}
                         """)
-
                     btn_save_edit.clicked.connect(self.handle_save_edit)
                     btn_cancel_edit.clicked.connect(self.handle_cancel_edit)
                     edit_action_row.addWidget(btn_save_edit)
                     edit_action_row.addWidget(btn_cancel_edit)
                     edit_action_row.addStretch()
-
                     edit_layout.addWidget(edit_title)
                     edit_layout.addWidget(self.edit_title_input)
                     edit_layout.addWidget(self.edit_content_input)
                     edit_layout.addLayout(edit_action_row)
-                    self.layout.addWidget(edit_card)
+                    post_layout_main.addWidget(edit_card)
 
                 for post in my_posts:
                     post_card = QFrame()
@@ -2358,13 +2566,11 @@ class ProfilePage(QWidget):
                     """)
                     post_layout = QHBoxLayout(post_card)
                     post_layout.setSpacing(12)
-
                     post_info = QLabel(
                         f"• {post['title']} ({post['date']}) | 👍 {len(post.get('likes', []))} | 💬 {len(post.get('comments', []))}"
                     )
                     post_info.setStyleSheet("color: white; font-weight: bold;")
                     post_info.setWordWrap(True)
-
                     btn_edit = QPushButton("✏ Sửa")
                     btn_delete = QPushButton("🗑 Xóa")
                     for btn, color in [(btn_edit, "#4e73df"), (btn_delete, "#e74a3b")]:
@@ -2382,24 +2588,27 @@ class ProfilePage(QWidget):
                                 background-color: rgba(255,255,255,0.28);
                             }}
                         """)
-
                     btn_edit.clicked.connect(lambda _, p=post: self.handle_edit_post(p))
                     btn_delete.clicked.connect(lambda _, p=post: self.handle_delete_post(p))
-
                     post_layout.addWidget(post_info, 1)
                     post_layout.addWidget(btn_edit)
                     post_layout.addWidget(btn_delete)
-                    self.layout.addWidget(post_card)
+                    post_layout_main.addWidget(post_card)
+            post_layout_main.addStretch()
+            self.feature_stack.addWidget(post_page)
 
+            admin_page = None
             if current_user == ADMIN_USERNAME:
+                admin_page = QWidget()
+                admin_layout = QVBoxLayout(admin_page)
+                admin_layout.setContentsMargins(0, 0, 0, 0)
+                admin_layout.setSpacing(10)
                 admin_label = QLabel("🛡 Quản trị tài khoản & nội dung")
                 admin_label.setStyleSheet("color: #fff; font-size: 17px; font-weight: bold;")
-                self.layout.addWidget(admin_label)
-
+                admin_layout.addWidget(admin_label)
                 for username in users.keys():
                     if username == ADMIN_USERNAME:
                         continue
-
                     row = QFrame()
                     row.setStyleSheet("""
                         QFrame {
@@ -2411,33 +2620,28 @@ class ProfilePage(QWidget):
                     """)
                     row_layout = QHBoxLayout(row)
                     row_layout.setSpacing(10)
-
                     row_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(username), 32))
                     info = QLabel(f"{username}")
                     info.setStyleSheet("color: white; font-weight: bold;")
-
                     suspend_box = StableDurationComboBox()
                     suspend_box.addItems(list(SUSPEND_CHOICES.keys()))
                     suspend_box.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
-
                     reason_input = QLineEdit()
                     reason_input.setPlaceholderText("Lý do khóa...")
                     reason_input.setMinimumWidth(220)
                     reason_input.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
-
                     btn_suspend = QPushButton("Khóa")
                     btn_suspend.setStyleSheet("background-color:#f6c23e; color:#1e2a56; border-radius:16px; padding:6px 12px; font-weight:bold;")
                     btn_suspend.clicked.connect(lambda _, u=username, b=suspend_box, r=reason_input: self.handle_admin_suspend(u, b.currentText(), r.text().strip()))
-
                     row_layout.addWidget(info, 1)
                     row_layout.addWidget(suspend_box)
                     row_layout.addWidget(reason_input)
                     row_layout.addWidget(btn_suspend)
-                    self.layout.addWidget(row)
+                    admin_layout.addWidget(row)
 
                 admin_post_label = QLabel("🗑 Xóa bài viết không phù hợp")
                 admin_post_label.setStyleSheet("color: #fff; font-size: 16px; font-weight: bold;")
-                self.layout.addWidget(admin_post_label)
+                admin_layout.addWidget(admin_post_label)
 
                 for post in posts:
                     if post.get("author") == ADMIN_USERNAME:
@@ -2454,14 +2658,31 @@ class ProfilePage(QWidget):
                     row_layout = QHBoxLayout(row)
                     txt = QLabel(f"• {post.get('title','(Không tiêu đề)')} - {post.get('author','Ẩn danh')}")
                     txt.setStyleSheet("color: white;")
-
                     btn_remove = QPushButton("Xóa bài")
                     btn_remove.setStyleSheet("background-color:#e74a3b; color:white; border-radius:16px; padding:6px 12px; font-weight:bold;")
                     btn_remove.clicked.connect(lambda _, p=post: self.handle_admin_delete_post(p))
-
                     row_layout.addWidget(txt, 1)
                     row_layout.addWidget(btn_remove)
-                    self.layout.addWidget(row)
+                    admin_layout.addWidget(row)
+                admin_layout.addStretch()
+                self.feature_stack.addWidget(admin_page)
+
+            nav_items = [
+                ("🔐 Đổi mật khẩu", 0),
+                ("🤝 Theo dõi", 1),
+                ("📚 Bài viết", 2),
+            ]
+            if admin_page:
+                nav_items.append(("🛡 Quản trị", 3))
+
+            for label, index in nav_items:
+                btn = build_section_button(label)
+                btn.clicked.connect(lambda _, i=index: self.feature_stack.setCurrentIndex(i))
+                feature_btn_row.addWidget(btn)
+
+            feature_layout.addLayout(feature_btn_row)
+            feature_layout.addWidget(self.feature_stack)
+            self.layout.addWidget(feature_card)
 
         self.layout.addStretch()
 
@@ -2609,6 +2830,8 @@ class MainWindow(QWidget):
 
         self.current_user = None
         self.password_reset_tokens = {}
+        self.selected_notification = None
+        self.notification_anchor_widget = None
 
         self.setWindowTitle("NovaNews Desktop")
         self.resize(1440, 900)
@@ -2674,23 +2897,25 @@ class MainWindow(QWidget):
 
         self.notify_badge = QLabel("0")
         self.notify_badge.setAlignment(Qt.AlignCenter)
-        self.notify_badge.setFixedSize(24, 24)
+        self.notify_badge.setFixedSize(20, 20)
         self.notify_badge.setStyleSheet("""
             QLabel {
                 background-color: #e74a3b;
                 color: white;
-                border-radius: 12px;
-                font-size: 11px;
+                border: 1px solid rgba(255,255,255,0.85);
+                border-radius: 10px;
+                font-size: 10px;
                 font-weight: bold;
             }
         """)
 
-        notify_wrapper = QFrame()
-        notify_layout = QHBoxLayout(notify_wrapper)
+        self.notify_wrapper = QFrame()
+        notify_layout = QGridLayout(self.notify_wrapper)
         notify_layout.setContentsMargins(0, 0, 0, 0)
-        notify_layout.setSpacing(6)
-        notify_layout.addWidget(self.btn_notify)
-        notify_layout.addWidget(self.notify_badge)
+        notify_layout.setHorizontalSpacing(0)
+        notify_layout.setVerticalSpacing(0)
+        notify_layout.addWidget(self.btn_notify, 0, 0, alignment=Qt.AlignCenter)
+        notify_layout.addWidget(self.notify_badge, 0, 0, alignment=Qt.AlignTop | Qt.AlignRight)
 
         self.btn_home.clicked.connect(self.show_home)
         self.btn_create.clicked.connect(self.show_create)
@@ -2701,29 +2926,29 @@ class MainWindow(QWidget):
         menu_layout.addWidget(self.btn_create)
         menu_layout.addWidget(self.btn_profile)
         menu_layout.addWidget(self.btn_groups)
-        menu_layout.addWidget(notify_wrapper)
+        menu_layout.addWidget(self.notify_wrapper)
 
         self.main_layout.addWidget(self.menu_bar)
 
-        self.notification_panel = QFrame()
+        self.notification_panel = QFrame(self)
         self.notification_panel.setVisible(False)
-        self.notification_panel.setMinimumHeight(360)
+        self.notification_panel.setFixedWidth(420)
+        self.notification_panel.setFixedHeight(500)
         self.notification_panel.setStyleSheet("""
             QFrame {
-                background-color: rgba(15,23,42,0.92);
+                background-color: rgba(15,23,42,0.95);
                 border: 1px solid rgba(255,255,255,0.45);
-                border-radius: 18px;
-                margin: 8px 24px;
+                border-radius: 16px;
             }
         """)
 
         panel_layout = QVBoxLayout(self.notification_panel)
-        panel_layout.setContentsMargins(14, 12, 14, 12)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(12, 12, 12, 12)
+        panel_layout.setSpacing(8)
 
         panel_title = QLabel("🔔 Thông báo")
         panel_title.setStyleSheet(
-            "color: white; font-size: 18px; font-weight: bold;"
+            "color: white; font-size: 17px; font-weight: bold;"
             "padding: 6px 10px;"
             "background-color: rgba(255,255,255,0.08);"
             "border-radius: 10px;"
@@ -2731,25 +2956,24 @@ class MainWindow(QWidget):
         )
 
         action_row = QHBoxLayout()
-        btn_mark_read = QPushButton("✓ Đánh dấu đã đọc")
-        btn_clear = QPushButton("🗑 Xóa notification")
+        self.btn_mark_read = QPushButton("✓ Đánh dấu đã đọc")
+        self.btn_delete_selected = QPushButton("🗑 Xóa đã chọn")
 
         for btn, bg, hover, pressed in [
-            (btn_mark_read, "#4e73df", "#3f63c9", "#3555ad"),
-            (btn_clear, "#e74a3b", "#d83b2e", "#bf3327")
+            (self.btn_mark_read, "#4e73df", "#3f63c9", "#3555ad"),
+            (self.btn_delete_selected, "#e74a3b", "#d83b2e", "#bf3327")
         ]:
-            btn.setFixedHeight(40)
-            btn.setMinimumWidth(180)
+            btn.setFixedHeight(36)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {bg};
                     color: white;
-                    border-radius: 20px;
-                    font-size: 13px;
+                    border-radius: 18px;
+                    font-size: 12px;
                     font-weight: bold;
                     border: 1px solid rgba(255,255,255,0.40);
-                    padding: 0 16px;
+                    padding: 0 12px;
                 }}
                 QPushButton:hover {{
                     background-color: {hover};
@@ -2760,27 +2984,25 @@ class MainWindow(QWidget):
                 }}
             """)
 
-        btn_mark_read.clicked.connect(self.mark_all_notifications_read)
-        btn_clear.clicked.connect(self.clear_notifications)
-        action_row.addWidget(btn_mark_read)
-        action_row.addWidget(btn_clear)
+        self.btn_mark_read.clicked.connect(self.mark_all_notifications_read)
+        self.btn_delete_selected.clicked.connect(self.delete_selected_notification)
+        action_row.addWidget(self.btn_mark_read)
+        action_row.addWidget(self.btn_delete_selected)
         action_row.addStretch()
 
         self.notification_scroll = QScrollArea()
-        self.notification_scroll.setMinimumHeight(260)
         self.notification_scroll.setWidgetResizable(True)
         self.notification_scroll.setStyleSheet("border: none;")
 
         self.notification_container = QWidget()
         self.notification_layout = QVBoxLayout(self.notification_container)
         self.notification_layout.setContentsMargins(0, 0, 0, 0)
+        self.notification_layout.setSpacing(8)
         self.notification_scroll.setWidget(self.notification_container)
 
         panel_layout.addWidget(panel_title)
         panel_layout.addLayout(action_row)
         panel_layout.addWidget(self.notification_scroll)
-
-        self.main_layout.addWidget(self.notification_panel)
 
         self.content_area = QVBoxLayout()
         self.main_layout.addLayout(self.content_area)
@@ -2789,11 +3011,14 @@ class MainWindow(QWidget):
 
         self.update_auth_state()
         self.update_notification_badge()
+        QApplication.instance().installEventFilter(self)
 
     def update_auth_state(self):
         logged_in = bool(self.current_user)
         self.menu_bar.setVisible(False)
         self.notification_panel.setVisible(False)
+        self.selected_notification = None
+        self.notification_anchor_widget = None
         self.notify_badge.setVisible(False)
         self.btn_notify.setVisible(False)
         self.app_title.setVisible(not logged_in)
@@ -3044,6 +3269,7 @@ class MainWindow(QWidget):
     def logout_user(self):
         self.current_user = None
         self.password_reset_tokens = {}
+        self.selected_notification = None
         self.update_notification_badge()
         self.render_notifications()
         self.update_auth_state()
@@ -3114,20 +3340,84 @@ class MainWindow(QWidget):
             return []
         return notifications.get(self.current_user, [])
 
-    def update_notification_badge(self):
+    def get_unread_notifications_count(self):
         unread_count = 0
         for item in self.get_notifications_for_current_user():
             if not item.get("read", False):
                 unread_count += 1
-        self.notify_badge.setText(str(unread_count))
-        self.notify_badge.setVisible(unread_count > 0)
+        return unread_count
 
-    def toggle_notification_panel(self):
-        should_show = not self.notification_panel.isVisible()
-        self.notification_panel.setVisible(should_show)
-        if should_show:
-            self.render_notifications()
-            self.notification_panel.raise_()
+    def update_notification_badge(self):
+        unread_count = self.get_unread_notifications_count()
+        self.notify_badge.setText(str(unread_count))
+        show_count = unread_count if not self.notification_panel.isVisible() else 0
+        self.notify_badge.setVisible(show_count > 0)
+        if hasattr(self, "home") and self.home:
+            self.home.update_notify_badge(show_count)
+
+    def position_notification_panel(self):
+        anchor = self.notification_anchor_widget if self.notification_anchor_widget else self.notify_wrapper
+        bell_top_right = anchor.mapTo(self, anchor.rect().topRight())
+        x = bell_top_right.x() + 2
+        y = bell_top_right.y() - 2
+
+        max_x = self.width() - self.notification_panel.width() - 12
+        max_y = self.height() - self.notification_panel.height() - 12
+        x = max(12, min(x, max_x))
+        y = max(12, min(y, max_y))
+
+        self.notification_panel.move(x, y)
+
+    def show_notification_panel(self):
+        self.position_notification_panel()
+        self.render_notifications()
+        self.notification_panel.show()
+        self.notification_panel.raise_()
+        self.notify_badge.setVisible(False)
+        if hasattr(self, "home") and self.home:
+            self.home.update_notify_badge(0)
+
+    def hide_notification_panel(self):
+        self.notification_panel.hide()
+        self.update_notification_badge()
+
+    def toggle_notification_panel(self, source_widget=None):
+        if source_widget is not None:
+            self.notification_anchor_widget = source_widget
+        elif self.notification_anchor_widget is None:
+            self.notification_anchor_widget = self.notify_wrapper
+
+        if self.notification_panel.isVisible():
+            self.hide_notification_panel()
+        else:
+            self.show_notification_panel()
+
+    def eventFilter(self, watched, event):
+        if self.notification_panel.isVisible() and event.type() == QEvent.MouseButtonPress:
+            clicked_widget = QApplication.widgetAt(event.globalPos())
+            if clicked_widget:
+                if (
+                    clicked_widget is self.notification_panel
+                    or self.notification_panel.isAncestorOf(clicked_widget)
+                    or clicked_widget is self.btn_notify
+                    or clicked_widget is self.notify_badge
+                    or self.notify_wrapper.isAncestorOf(clicked_widget)
+                    or (
+                        self.notification_anchor_widget
+                        and (
+                            clicked_widget is self.notification_anchor_widget
+                            or self.notification_anchor_widget.isAncestorOf(clicked_widget)
+                        )
+                    )
+                ):
+                    return super().eventFilter(watched, event)
+            self.hide_notification_panel()
+        return super().eventFilter(watched, event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.notification_panel.isVisible():
+            self.position_notification_panel()
 
     def clear_notification_widgets(self):
         while self.notification_layout.count():
@@ -3140,6 +3430,11 @@ class MainWindow(QWidget):
         self.clear_notification_widgets()
         current_items = self.get_notifications_for_current_user()
 
+        if self.selected_notification not in current_items:
+            self.selected_notification = None
+
+        self.btn_delete_selected.setEnabled(bool(self.selected_notification))
+
         if not self.current_user:
             label = QLabel("Vui lòng đăng nhập để xem thông báo.")
             label.setStyleSheet("color: #f1f1f1;")
@@ -3150,6 +3445,7 @@ class MainWindow(QWidget):
             self.notification_layout.addWidget(label)
         else:
             for item in current_items:
+                is_selected = item is self.selected_notification
                 row = QFrame()
                 row.setStyleSheet("""
                     QFrame {
@@ -3158,9 +3454,17 @@ class MainWindow(QWidget):
                         border: 1px solid rgba(255,255,255,0.25);
                         padding: 8px;
                     }
+                """ if not is_selected else """
+                    QFrame {
+                        background-color: rgba(78,115,223,0.35);
+                        border-radius: 10px;
+                        border: 1px solid rgba(255,255,255,0.85);
+                        padding: 8px;
+                    }
                 """)
                 row_layout = QHBoxLayout(row)
                 row_layout.setContentsMargins(10, 8, 10, 8)
+                row_layout.setSpacing(8)
 
                 text = item.get("message", "Thông báo")
                 if not item.get("read", False):
@@ -3174,21 +3478,38 @@ class MainWindow(QWidget):
                 label.setStyleSheet("color: white;")
 
                 open_btn = QPushButton("Mở")
-                open_btn.setFixedWidth(92)
+                open_btn.setFixedWidth(60)
                 open_btn.clicked.connect(lambda _, n=item: self.open_notification(n))
 
                 remove_btn = QPushButton("Xóa")
-                remove_btn.setFixedWidth(92)
+                remove_btn.setFixedWidth(60)
                 remove_btn.clicked.connect(lambda _, n=item: self.delete_notification(n))
 
                 row_layout.addWidget(label, 1)
                 row_layout.addWidget(open_btn)
                 row_layout.addWidget(remove_btn)
 
+                row.mousePressEvent = lambda e, n=item: self.select_notification(n)
+                label.mousePressEvent = lambda e, n=item: self.select_notification(n)
+
                 self.notification_layout.addWidget(row)
 
         self.notification_layout.addStretch()
         self.update_notification_badge()
+
+    def select_notification(self, notification_item):
+        if not self.current_user:
+            return
+        self.selected_notification = notification_item
+        if not notification_item.get("read", False):
+            notification_item["read"] = True
+            save_notifications(notifications)
+        self.render_notifications()
+
+    def delete_selected_notification(self):
+        if not self.current_user or not self.selected_notification:
+            return
+        self.delete_notification(self.selected_notification)
 
     def mark_all_notifications_read(self):
         if not self.current_user:
@@ -3217,6 +3538,7 @@ class MainWindow(QWidget):
     def open_notification(self, notification_item):
         if not self.current_user:
             return
+        self.selected_notification = notification_item
         notification_item["read"] = True
         save_notifications(notifications)
         self.update_notification_badge()
@@ -3225,6 +3547,7 @@ class MainWindow(QWidget):
         for post in posts:
             if post.get("id") == target_post_id:
                 self.show_detail(post)
+                self.hide_notification_panel()
                 break
         self.render_notifications()
 
@@ -3309,6 +3632,7 @@ class MainWindow(QWidget):
         groups.insert(0, {
             "id": str(uuid.uuid4()),
             "name": group_name.strip(),
+            "avatar": "",
             "owner": current_user,
             "deputies": [],
             "members": [current_user],
@@ -3520,6 +3844,43 @@ class MainWindow(QWidget):
         self.render_notifications()
         return True, "Đã đăng bài vào group."
 
+    def update_group_avatar(self, group_id, avatar_path):
+        current_user = self.get_current_user()
+        group = self.get_group_by_id(group_id)
+        if not current_user:
+            return False, "Bạn cần đăng nhập."
+        if not group:
+            return False, "Không tìm thấy group."
+        if current_user != group.get("owner") and current_user not in group.get("deputies", []):
+            return False, "Chỉ trưởng nhóm hoặc phó nhóm mới được cập nhật ảnh nhóm."
+        group["avatar"] = avatar_path
+        save_groups(groups)
+        return True, "Cập nhật ảnh đại diện nhóm thành công."
+
+    def edit_group_post(self, group_id, post_id, title, content):
+        current_user = self.get_current_user()
+        group = self.get_group_by_id(group_id)
+        if not current_user:
+            return False, "Bạn cần đăng nhập."
+        if not group:
+            return False, "Không tìm thấy group."
+        if not title or not content:
+            return False, "Tiêu đề và nội dung không được để trống."
+
+        owner = group.get("owner")
+        deputies = group.get("deputies", [])
+        for post in group.get("posts", []):
+            if post.get("id") != post_id:
+                continue
+            can_edit = post.get("author") == current_user or current_user == owner or current_user in deputies
+            if not can_edit:
+                return False, "Bạn không có quyền sửa bài viết này."
+            post["title"] = title
+            post["content"] = content
+            save_groups(groups)
+            return True, "Đã cập nhật bài viết trong group."
+        return False, "Không tìm thấy bài viết trong group."
+
     def delete_group_post(self, group_id, post_id):
         current_user = self.get_current_user()
         group = self.get_group_by_id(group_id)
@@ -3560,6 +3921,7 @@ class MainWindow(QWidget):
             self.show_groups,
             self.show_inline_message,
             self.toggle_notification_panel,
+            self.get_unread_notifications_count,
         )
         self.content_area.addWidget(self.home)
 
@@ -3572,6 +3934,19 @@ class MainWindow(QWidget):
         self.clear_content()
         self.create_page = CreatePage(self.show_home, self.show_home, self.get_current_user, self.show_inline_message, self.notify_new_post_activity)
         self.content_area.addWidget(self.create_page)
+
+    def show_group_post_detail(self, group_post):
+        normalized_post = {
+            "id": group_post.get("id", generate_post_id()),
+            "title": group_post.get("title", ""),
+            "content": group_post.get("content", ""),
+            "date": group_post.get("date", now_text()),
+            "author": group_post.get("author", "Ẩn danh"),
+            "image": group_post.get("image", ""),
+            "likes": group_post.get("likes", []),
+            "comments": group_post.get("comments", []),
+        }
+        self.show_detail(normalized_post)
 
     def show_groups(self):
         self.clear_content()
@@ -3588,6 +3963,9 @@ class MainWindow(QWidget):
             self.leave_group,
             self.create_group_post,
             self.delete_group_post,
+            self.edit_group_post,
+            self.update_group_avatar,
+            self.show_group_post_detail,
             self.show_home,
         )
         self.content_area.addWidget(self.group_page)
