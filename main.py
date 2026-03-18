@@ -1247,6 +1247,7 @@ class GroupPage(QWidget):
         self.delete_group_post_callback = delete_group_post_callback
         self.view_group_post_callback = view_group_post_callback
         self.back_callback = back_callback
+        self.selected_group_id = None
 
         self.primary_btn_style = """
             QPushButton {
@@ -1378,86 +1379,100 @@ class GroupPage(QWidget):
         create_layout.addWidget(btn_create_group)
         self.layout.addWidget(create_card)
 
-        joined_groups = [g for g in groups if current_user in g.get("members", [])]
-        if joined_groups:
-            quick_post_card = QFrame()
-            quick_post_card.setStyleSheet("""
-                QFrame {
-                    background-color: rgba(0,0,0,0.24);
-                    border: 1px solid rgba(255,255,255,0.35);
-                    border-radius: 16px;
-                    padding: 10px;
-                }
-            """)
-            quick_layout = QVBoxLayout(quick_post_card)
-            quick_layout.setSpacing(8)
-            quick_layout.addWidget(self._build_section_title("📝 Đăng bài nhanh vào nhóm"))
+        board = QFrame()
+        board.setStyleSheet("""
+            QFrame {
+                background-color: rgba(0,0,0,0.22);
+                border: 1px solid rgba(255,255,255,0.30);
+                border-radius: 18px;
+            }
+        """)
+        board_layout = QHBoxLayout(board)
+        board_layout.setContentsMargins(12, 12, 12, 12)
+        board_layout.setSpacing(12)
 
-            self.quick_group_combo = QComboBox()
-            self.quick_group_combo.setStyleSheet("background-color: white; border-radius: 8px; padding: 6px;")
-            for grp in joined_groups:
-                self.quick_group_combo.addItem(grp.get("name", "Nhóm"), grp.get("id"))
+        list_panel = QFrame()
+        list_panel.setFixedWidth(300)
+        list_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.20);
+                border-radius: 16px;
+            }
+        """)
+        list_layout = QVBoxLayout(list_panel)
+        list_layout.setContentsMargins(10, 10, 10, 10)
+        list_layout.setSpacing(8)
+        list_layout.addWidget(self._build_section_title("💬 Danh sách nhóm"))
 
-            self.quick_post_title = QLineEdit()
-            self.quick_post_title.setPlaceholderText("Tiêu đề bài viết...")
-            self.quick_post_title.setFixedHeight(38)
-            self.quick_post_title.setStyleSheet("""
-                QLineEdit {
-                    background-color: rgba(255,255,255,0.95);
-                    border-radius: 10px;
-                    padding: 0 12px;
-                    border: 1px solid rgba(0,0,0,0.1);
-                }
-            """)
-
-            self.quick_post_content = QTextEdit()
-            self.quick_post_content.setPlaceholderText("Nội dung bài viết trong nhóm...")
-            self.quick_post_content.setFixedHeight(80)
-            self.quick_post_content.setStyleSheet("""
-                QTextEdit {
-                    background-color: rgba(255,255,255,0.95);
-                    border-radius: 10px;
-                    padding: 10px;
-                    border: 1px solid rgba(0,0,0,0.1);
-                }
-            """)
-
-            btn_quick_post = QPushButton("Đăng vào nhóm đã chọn")
-            btn_quick_post.setStyleSheet(self.green_btn_style)
-            btn_quick_post.clicked.connect(self.handle_quick_group_post)
-
-            quick_layout.addWidget(self.quick_group_combo)
-            quick_layout.addWidget(self.quick_post_title)
-            quick_layout.addWidget(self.quick_post_content)
-            quick_layout.addWidget(btn_quick_post)
-            self.layout.addWidget(quick_post_card)
+        detail_panel = QFrame()
+        detail_panel.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255,255,255,0.07);
+                border: 1px solid rgba(255,255,255,0.20);
+                border-radius: 16px;
+            }
+        """)
+        detail_layout = QVBoxLayout(detail_panel)
+        detail_layout.setContentsMargins(12, 12, 12, 12)
+        detail_layout.setSpacing(10)
 
         if not groups:
             empty = QLabel("Chưa có group nào. Hãy tạo group đầu tiên!")
             empty.setStyleSheet("color: #eef2ff; font-size: 14px; padding: 10px;")
             empty.setAlignment(Qt.AlignCenter)
-            self.layout.addWidget(empty)
+            list_layout.addWidget(empty)
+            detail_layout.addWidget(QLabel(""))
+        else:
+            if not self.selected_group_id or not any(g.get("id") == self.selected_group_id for g in groups):
+                self.selected_group_id = groups[0].get("id")
 
-        for group in groups:
-            card = QFrame()
-            card.setStyleSheet("""
-                QFrame {
-                    background-color: rgba(0,0,0,0.30);
-                    border: 1px solid rgba(255,255,255,0.35);
-                    border-radius: 16px;
-                    padding: 12px;
-                }
-            """)
-            card_layout = QVBoxLayout(card)
-            card_layout.setSpacing(10)
+            selected_group = next((g for g in groups if g.get("id") == self.selected_group_id), groups[0])
+            self.selected_group_id = selected_group.get("id")
 
-            owner = group.get("owner", "Ẩn danh")
-            deputies = group.get("deputies", [])
-            members = group.get("members", [])
-            pending = group.get("pending_members", [])
-            group_posts = group.get("posts", [])
+            for group in groups:
+                owner = group.get("owner", "Ẩn danh")
+                members = group.get("members", [])
+                pending = group.get("pending_members", [])
+                joined = current_user in members
+                label = f"{group.get('name', 'Nhóm')}\n👥 {len(members)} thành viên"
+                if not joined and current_user in pending:
+                    label += " | ⏳ chờ duyệt"
+                elif joined:
+                    label += " | ✅ đã tham gia"
+                btn_group = QPushButton(label)
+                btn_group.setCursor(Qt.PointingHandCursor)
+                btn_group.setMinimumHeight(56)
+                btn_group.setStyleSheet(f"""
+                    QPushButton {{
+                        text-align: left;
+                        padding: 8px 12px;
+                        color: white;
+                        background-color: {'rgba(78,115,223,0.55)' if group.get('id') == self.selected_group_id else 'rgba(255,255,255,0.10)'};
+                        border: 1px solid {'rgba(255,255,255,0.70)' if group.get('id') == self.selected_group_id else 'rgba(255,255,255,0.20)'};
+                        border-radius: 14px;
+                        font-size: 12px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background-color: rgba(78,115,223,0.40);
+                    }}
+                """)
+                btn_group.clicked.connect(lambda _, gid=group.get("id"): self.handle_select_group(gid))
+                list_layout.addWidget(btn_group)
+            list_layout.addStretch()
 
-            head = QLabel(f"📌 {group.get('name', 'Nhóm')} | Trưởng nhóm: {owner} | Thành viên: {len(members)}")
+            owner = selected_group.get("owner", "Ẩn danh")
+            deputies = selected_group.get("deputies", [])
+            members = selected_group.get("members", [])
+            pending = selected_group.get("pending_members", [])
+            group_posts = selected_group.get("posts", [])
+            is_owner = current_user == owner
+            is_deputy = current_user in deputies
+            is_manager = is_owner or is_deputy
+            is_member = current_user in members
+
+            head = QLabel(f"📌 {selected_group.get('name', 'Nhóm')} | Trưởng nhóm: {owner} | Thành viên: {len(members)}")
             head.setStyleSheet(
                 "color:white; font-size:16px; font-weight:bold;"
                 "padding: 8px 10px;"
@@ -1466,12 +1481,7 @@ class GroupPage(QWidget):
                 "border: 1px solid rgba(255,255,255,0.25);"
             )
             head.setWordWrap(True)
-            card_layout.addWidget(head)
-
-            is_owner = current_user == owner
-            is_deputy = current_user in deputies
-            is_manager = is_owner or is_deputy
-            is_member = current_user in members
+            detail_layout.addWidget(head)
 
             action_row = QHBoxLayout()
             action_row.setSpacing(8)
@@ -1483,16 +1493,45 @@ class GroupPage(QWidget):
                 else:
                     btn_join = QPushButton("Xin vào nhóm")
                     btn_join.setStyleSheet(self.primary_btn_style)
-                    btn_join.clicked.connect(lambda _, gid=group.get("id"): self.handle_join_request(gid))
+                    btn_join.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_join_request(gid))
                     action_row.addWidget(btn_join)
             else:
                 btn_leave = QPushButton("Rời nhóm")
                 btn_leave.setStyleSheet(self.primary_btn_style)
-                btn_leave.clicked.connect(lambda _, gid=group.get("id"): self.handle_leave_group(gid))
+                btn_leave.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_leave_group(gid))
                 action_row.addWidget(btn_leave)
-
             action_row.addStretch()
-            card_layout.addLayout(action_row)
+            detail_layout.addLayout(action_row)
+
+            if is_member:
+                post_box = QFrame()
+                post_box.setStyleSheet("""
+                    QFrame {
+                        background-color: rgba(255,255,255,0.08);
+                        border-radius: 12px;
+                        border: 1px solid rgba(255,255,255,0.22);
+                        padding: 10px;
+                    }
+                """)
+                post_layout = QVBoxLayout(post_box)
+                post_layout.setSpacing(8)
+                post_layout.addWidget(self._build_section_title(f"📝 Đăng bài vào: {selected_group.get('name', 'Nhóm')}"))
+
+                self.group_post_title = QLineEdit()
+                self.group_post_title.setPlaceholderText("Tiêu đề bài viết...")
+                self.group_post_title.setFixedHeight(38)
+                self.group_post_title.setStyleSheet("background-color: rgba(255,255,255,0.95); border-radius: 10px; padding: 0 12px; border: 1px solid rgba(0,0,0,0.1);")
+                self.group_post_content = QTextEdit()
+                self.group_post_content.setPlaceholderText("Nội dung bài viết trong nhóm...")
+                self.group_post_content.setFixedHeight(90)
+                self.group_post_content.setStyleSheet("background-color: rgba(255,255,255,0.95); border-radius: 10px; padding: 10px; border: 1px solid rgba(0,0,0,0.1);")
+                btn_post = QPushButton("Đăng vào nhóm đang chọn")
+                btn_post.setStyleSheet(self.green_btn_style)
+                btn_post.clicked.connect(lambda _, gid=selected_group.get("id"), t=self.group_post_title, c=self.group_post_content: self.handle_group_post(gid, t, c))
+                post_layout.addWidget(self.group_post_title)
+                post_layout.addWidget(self.group_post_content)
+                post_layout.addWidget(btn_post)
+                detail_layout.addWidget(post_box)
 
             if is_owner:
                 owner_box = QFrame()
@@ -1511,17 +1550,12 @@ class GroupPage(QWidget):
                 transfer_row = QHBoxLayout()
                 transfer_options = [u for u in members if u != owner]
                 if transfer_options:
-                    transfer_label = QLabel("Nhường trưởng nhóm cho:")
-                    transfer_label.setStyleSheet("color: white; font-weight: bold;")
                     transfer_combo = QComboBox()
                     transfer_combo.addItems(transfer_options)
                     transfer_combo.setStyleSheet("background-color: white; border-radius: 8px; padding: 4px;")
                     transfer_btn = QPushButton("Nhường trưởng nhóm")
                     transfer_btn.setStyleSheet(self.primary_btn_style)
-                    transfer_btn.clicked.connect(
-                        lambda _, gid=group.get("id"), c=transfer_combo: self.handle_transfer_owner(gid, c.currentText())
-                    )
-                    transfer_row.addWidget(transfer_label)
+                    transfer_btn.clicked.connect(lambda _, gid=selected_group.get("id"), c=transfer_combo: self.handle_transfer_owner(gid, c.currentText()))
                     transfer_row.addWidget(transfer_combo, 1)
                     transfer_row.addWidget(transfer_btn)
                 else:
@@ -1530,18 +1564,14 @@ class GroupPage(QWidget):
                     transfer_row.addWidget(no_member)
                 owner_layout.addLayout(transfer_row)
 
-                dissolve_row = QHBoxLayout()
                 dissolve_btn = QPushButton("Giải tán nhóm")
                 dissolve_btn.setStyleSheet(self.red_btn_style)
-                dissolve_btn.clicked.connect(lambda _, gid=group.get("id"): self.handle_dissolve_group(gid))
-                dissolve_row.addWidget(dissolve_btn)
-                dissolve_row.addStretch()
-                owner_layout.addLayout(dissolve_row)
-
-                card_layout.addWidget(owner_box)
+                dissolve_btn.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_dissolve_group(gid))
+                owner_layout.addWidget(dissolve_btn, alignment=Qt.AlignLeft)
+                detail_layout.addWidget(owner_box)
 
             if is_manager and pending:
-                card_layout.addWidget(self._build_section_title("✅ Yêu cầu tham gia chờ duyệt"))
+                detail_layout.addWidget(self._build_section_title("✅ Yêu cầu tham gia"))
                 for username in list(pending):
                     row = QHBoxLayout()
                     name = QLabel(f"• {username}")
@@ -1551,40 +1581,36 @@ class GroupPage(QWidget):
                     reject = QPushButton("Từ chối")
                     approve.setStyleSheet(self.green_btn_style)
                     reject.setStyleSheet(self.red_btn_style)
-                    approve.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_review_request(gid, u, True))
-                    reject.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_review_request(gid, u, False))
+                    approve.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_review_request(gid, u, True))
+                    reject.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_review_request(gid, u, False))
                     row.addWidget(approve)
                     row.addWidget(reject)
-                    card_layout.addLayout(row)
+                    detail_layout.addLayout(row)
 
             if is_manager and members:
-                card_layout.addWidget(self._build_section_title("👤 Quản lý thành viên"))
+                detail_layout.addWidget(self._build_section_title("👤 Thành viên"))
                 for username in list(members):
                     if username == owner:
                         continue
-
                     row = QHBoxLayout()
                     row.setSpacing(8)
                     role_text = "Phó nhóm" if username in deputies else "Thành viên"
                     role_label = QLabel(f"• {username} ({role_text})")
                     role_label.setStyleSheet("color:white; font-weight:bold;")
                     row.addWidget(role_label, 1)
-
                     if is_owner:
                         btn_deputy = QPushButton("Phó nhóm")
                         btn_deputy.setStyleSheet(self.primary_btn_style)
-                        btn_deputy.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_toggle_deputy(gid, u))
+                        btn_deputy.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_toggle_deputy(gid, u))
                         row.addWidget(btn_deputy)
-
-
                     btn_remove = QPushButton("Xóa")
                     btn_remove.setStyleSheet(self.red_btn_style)
-                    btn_remove.clicked.connect(lambda _, gid=group.get("id"), u=username: self.handle_remove_member(gid, u))
+                    btn_remove.clicked.connect(lambda _, gid=selected_group.get("id"), u=username: self.handle_remove_member(gid, u))
                     row.addWidget(btn_remove)
-                    card_layout.addLayout(row)
+                    detail_layout.addLayout(row)
 
             if is_member and group_posts:
-                card_layout.addWidget(self._build_section_title("📚 Bài viết trong group"))
+                detail_layout.addWidget(self._build_section_title("📚 Bài viết trong nhóm"))
                 for gp in group_posts:
                     prow = QFrame()
                     prow.setStyleSheet("""
@@ -1600,27 +1626,32 @@ class GroupPage(QWidget):
                     lbl.setStyleSheet("color:white;")
                     lbl.setWordWrap(True)
                     prow_layout.addWidget(lbl, 1)
-
                     btn_view = QPushButton("Xem")
                     btn_view.setStyleSheet(self.primary_btn_style)
                     btn_view.clicked.connect(lambda _, post=gp: self.handle_view_group_post(post))
                     prow_layout.addWidget(btn_view)
-
                     can_delete = is_manager and (is_owner or gp.get("author") != owner)
                     if can_delete:
                         btn_del_post = QPushButton("Xóa bài")
                         btn_del_post.setStyleSheet(self.red_btn_style)
-                        btn_del_post.clicked.connect(lambda _, gid=group.get("id"), pid=gp.get("id"): self.handle_delete_group_post(gid, pid))
+                        btn_del_post.clicked.connect(lambda _, gid=selected_group.get("id"), pid=gp.get("id"): self.handle_delete_group_post(gid, pid))
                         prow_layout.addWidget(btn_del_post)
-                    card_layout.addWidget(prow)
+                    detail_layout.addWidget(prow)
             elif (not is_member) and group_posts:
                 hint = QLabel("🔒 Hãy tham gia nhóm để xem bài viết của nhóm.")
                 hint.setStyleSheet("color:#dbeafe; font-size:13px;")
-                card_layout.addWidget(hint)
+                detail_layout.addWidget(hint)
 
-            self.layout.addWidget(card)
+            detail_layout.addStretch()
 
+        board_layout.addWidget(list_panel)
+        board_layout.addWidget(detail_panel, 1)
+        self.layout.addWidget(board)
         self.layout.addStretch()
+
+    def handle_select_group(self, group_id):
+        self.selected_group_id = group_id
+        self.render_ui()
 
     def handle_create_group(self):
         name = self.new_group_name.text().strip()
