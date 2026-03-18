@@ -2261,10 +2261,20 @@ class ProfilePage(QWidget):
                 }
             """)
             welcome_layout = QVBoxLayout(welcome_card)
+            welcome_layout.setContentsMargins(18, 18, 18, 18)
+            welcome_layout.setSpacing(12)
 
             avatar_row = QHBoxLayout()
+            avatar_row.setContentsMargins(0, 4, 0, 4)
             avatar_row.setSpacing(12)
-            avatar_row.addWidget(build_avatar_label(self.get_user_avatar_callback(current_user), 82))
+
+            avatar_wrapper = QFrame()
+            avatar_wrapper.setFixedSize(94, 94)
+            avatar_wrapper.setStyleSheet("background: transparent; border: none;")
+            avatar_wrapper_layout = QVBoxLayout(avatar_wrapper)
+            avatar_wrapper_layout.setContentsMargins(6, 6, 6, 6)
+            avatar_wrapper_layout.addWidget(build_avatar_label(self.get_user_avatar_callback(current_user), 82), alignment=Qt.AlignCenter)
+            avatar_row.addWidget(avatar_wrapper, 0, Qt.AlignVCenter)
 
             welcome_text = QVBoxLayout()
             welcome = QLabel(f"Xin chào, {current_user}!")
