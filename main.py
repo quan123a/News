@@ -489,6 +489,7 @@ def normalize_group(raw_group):
     return {
         "id": raw_group.get("id", str(uuid.uuid4())),
         "name": raw_group.get("name", "Nhóm chưa đặt tên"),
+        "avatar": raw_group.get("avatar", ""),
         "owner": owner,
         "deputies": list(dict.fromkeys([u for u in deputies if isinstance(u, str) and u != owner])),
         "members": list(dict.fromkeys([u for u in members if isinstance(u, str)])),
@@ -1229,6 +1230,8 @@ class GroupPage(QWidget):
         leave_group_callback,
         create_group_post_callback,
         delete_group_post_callback,
+        edit_group_post_callback,
+        update_group_avatar_callback,
         view_group_post_callback,
         back_callback,
     ):
@@ -1245,6 +1248,8 @@ class GroupPage(QWidget):
         self.leave_group_callback = leave_group_callback
         self.create_group_post_callback = create_group_post_callback
         self.delete_group_post_callback = delete_group_post_callback
+        self.edit_group_post_callback = edit_group_post_callback
+        self.update_group_avatar_callback = update_group_avatar_callback
         self.view_group_post_callback = view_group_post_callback
         self.back_callback = back_callback
         self.selected_group_id = None
@@ -1472,16 +1477,26 @@ class GroupPage(QWidget):
             is_manager = is_owner or is_deputy
             is_member = current_user in members
 
-            head = QLabel(f"📌 {selected_group.get('name', 'Nhóm')} | Trưởng nhóm: {owner} | Thành viên: {len(members)}")
-            head.setStyleSheet(
-                "color:white; font-size:16px; font-weight:bold;"
-                "padding: 8px 10px;"
-                "background-color: rgba(255,255,255,0.08);"
-                "border-radius: 12px;"
-                "border: 1px solid rgba(255,255,255,0.25);"
-            )
-            head.setWordWrap(True)
-            detail_layout.addWidget(head)
+            head_box = QFrame()
+            head_box.setStyleSheet("background-color: rgba(255,255,255,0.08); border-radius: 12px; border: 1px solid rgba(255,255,255,0.25);")
+            head_layout = QHBoxLayout(head_box)
+            head_layout.setContentsMargins(10, 10, 10, 10)
+            head_layout.setSpacing(10)
+            head_layout.addWidget(build_avatar_label(selected_group.get("avatar", ""), 54))
+            head_text = QVBoxLayout()
+            head = QLabel(f"📌 {selected_group.get('name', 'Nhóm')}")
+            head.setStyleSheet("color:white; font-size:16px; font-weight:bold;")
+            head_meta = QLabel(f"Trưởng nhóm: {owner} | Thành viên: {len(members)}")
+            head_meta.setStyleSheet("color:#dbeafe; font-size:12px; font-weight:bold;")
+            head_text.addWidget(head)
+            head_text.addWidget(head_meta)
+            head_layout.addLayout(head_text, 1)
+            if is_manager:
+                btn_group_avatar = QPushButton("Ảnh nhóm")
+                btn_group_avatar.setStyleSheet(self.primary_btn_style)
+                btn_group_avatar.clicked.connect(lambda _, gid=selected_group.get("id"): self.handle_update_group_avatar(gid))
+                head_layout.addWidget(btn_group_avatar)
+            detail_layout.addWidget(head_box)
 
             action_row = QHBoxLayout()
             action_row.setSpacing(8)
@@ -1630,6 +1645,12 @@ class GroupPage(QWidget):
                     btn_view.setStyleSheet(self.primary_btn_style)
                     btn_view.clicked.connect(lambda _, post=gp: self.handle_view_group_post(post))
                     prow_layout.addWidget(btn_view)
+                    can_edit = is_manager or gp.get("author") == current_user
+                    if can_edit:
+                        btn_edit_post = QPushButton("Sửa")
+                        btn_edit_post.setStyleSheet(self.primary_btn_style)
+                        btn_edit_post.clicked.connect(lambda _, gid=selected_group.get("id"), post=gp: self.handle_edit_group_post(gid, post))
+                        prow_layout.addWidget(btn_edit_post)
                     can_delete = is_manager and (is_owner or gp.get("author") != owner)
                     if can_delete:
                         btn_del_post = QPushButton("Xóa bài")
@@ -1726,6 +1747,25 @@ class GroupPage(QWidget):
 
     def handle_view_group_post(self, group_post):
         self.view_group_post_callback(group_post)
+
+    def handle_update_group_avatar(self, group_id):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Chọn ảnh nhóm", "", "Images (*.png *.jpg *.jpeg)")
+        if not file_path:
+            return
+        ok, msg = self.update_group_avatar_callback(group_id, file_path)
+        self.show_message(msg, "success" if ok else "error")
+        if ok:
+            self.render_ui()
+
+    def handle_edit_group_post(self, group_id, group_post):
+        dialog = EditPostDialog(group_post)
+        if dialog.exec_() != QDialog.Accepted:
+            return
+        title, content = dialog.get_data()
+        ok, msg = self.edit_group_post_callback(group_id, group_post.get("id"), title, content)
+        self.show_message(msg, "success" if ok else "error")
+        if ok:
+            self.render_ui()
 
     def handle_delete_group_post(self, group_id, post_id):
         ok, msg = self.delete_group_post_callback(group_id, post_id)
@@ -3581,6 +3621,7 @@ class MainWindow(QWidget):
         groups.insert(0, {
             "id": str(uuid.uuid4()),
             "name": group_name.strip(),
+            "avatar": "",
             "owner": current_user,
             "deputies": [],
             "members": [current_user],
@@ -3792,6 +3833,43 @@ class MainWindow(QWidget):
         self.render_notifications()
         return True, "Đã đăng bài vào group."
 
+    def update_group_avatar(self, group_id, avatar_path):
+        current_user = self.get_current_user()
+        group = self.get_group_by_id(group_id)
+        if not current_user:
+            return False, "Bạn cần đăng nhập."
+        if not group:
+            return False, "Không tìm thấy group."
+        if current_user != group.get("owner") and current_user not in group.get("deputies", []):
+            return False, "Chỉ trưởng nhóm hoặc phó nhóm mới được cập nhật ảnh nhóm."
+        group["avatar"] = avatar_path
+        save_groups(groups)
+        return True, "Cập nhật ảnh đại diện nhóm thành công."
+
+    def edit_group_post(self, group_id, post_id, title, content):
+        current_user = self.get_current_user()
+        group = self.get_group_by_id(group_id)
+        if not current_user:
+            return False, "Bạn cần đăng nhập."
+        if not group:
+            return False, "Không tìm thấy group."
+        if not title or not content:
+            return False, "Tiêu đề và nội dung không được để trống."
+
+        owner = group.get("owner")
+        deputies = group.get("deputies", [])
+        for post in group.get("posts", []):
+            if post.get("id") != post_id:
+                continue
+            can_edit = post.get("author") == current_user or current_user == owner or current_user in deputies
+            if not can_edit:
+                return False, "Bạn không có quyền sửa bài viết này."
+            post["title"] = title
+            post["content"] = content
+            save_groups(groups)
+            return True, "Đã cập nhật bài viết trong group."
+        return False, "Không tìm thấy bài viết trong group."
+
     def delete_group_post(self, group_id, post_id):
         current_user = self.get_current_user()
         group = self.get_group_by_id(group_id)
@@ -3874,6 +3952,8 @@ class MainWindow(QWidget):
             self.leave_group,
             self.create_group_post,
             self.delete_group_post,
+            self.edit_group_post,
+            self.update_group_avatar,
             self.show_group_post_detail,
             self.show_home,
         )
