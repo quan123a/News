@@ -611,6 +611,7 @@ class HomePage(QWidget):
         show_groups_callback,
         show_message_callback,
         toggle_notifications_callback,
+        get_unread_notifications_count_callback,
     ):
         super().__init__()
         self.open_detail_callback = open_detail_callback
@@ -621,6 +622,7 @@ class HomePage(QWidget):
         self.show_groups_callback = show_groups_callback
         self.show_message = show_message_callback
         self.toggle_notifications_callback = toggle_notifications_callback
+        self.get_unread_notifications_count_callback = get_unread_notifications_count_callback
 
         root_layout = QHBoxLayout(self)
         root_layout.setContentsMargins(18, 14, 18, 14)
@@ -660,6 +662,29 @@ class HomePage(QWidget):
             }
         """)
         self.btn_notify.clicked.connect(lambda: self.toggle_notifications_callback(self.btn_notify))
+
+        self.home_notify_badge = QLabel("0")
+        self.home_notify_badge.setAlignment(Qt.AlignCenter)
+        self.home_notify_badge.setFixedSize(18, 18)
+        self.home_notify_badge.setStyleSheet("""
+            QLabel {
+                background-color: #e74a3b;
+                color: white;
+                border: 1px solid rgba(255,255,255,0.9);
+                border-radius: 9px;
+                font-size: 9px;
+                font-weight: bold;
+            }
+        """)
+
+        self.notify_btn_wrap = QFrame()
+        notify_btn_wrap_layout = QGridLayout(self.notify_btn_wrap)
+        notify_btn_wrap_layout.setContentsMargins(0, 0, 0, 0)
+        notify_btn_wrap_layout.setHorizontalSpacing(0)
+        notify_btn_wrap_layout.setVerticalSpacing(0)
+        notify_btn_wrap_layout.addWidget(self.btn_notify, 0, 0, alignment=Qt.AlignCenter)
+        notify_btn_wrap_layout.addWidget(self.home_notify_badge, 0, 0, alignment=Qt.AlignTop | Qt.AlignRight)
+
         self.btn_create = QPushButton("✍️ Tạo bài mới")
         self.btn_create.clicked.connect(self.show_create_callback)
         self.btn_profile = QPushButton("👤 Hồ sơ cá nhân")
@@ -693,7 +718,7 @@ class HomePage(QWidget):
         side_layout.addWidget(app_sub)
         side_layout.addSpacing(6)
         notify_row = QHBoxLayout()
-        notify_row.addWidget(self.btn_notify)
+        notify_row.addWidget(self.notify_btn_wrap)
         notify_row.addStretch()
         side_layout.addLayout(notify_row)
         side_layout.addWidget(self.btn_create)
@@ -755,6 +780,7 @@ class HomePage(QWidget):
         root_layout.addWidget(main_panel, 1)
 
         self.render_posts()
+        self.update_notify_badge(self.get_unread_notifications_count_callback())
 
     def clear_posts(self):
         while self.container_layout.count():
@@ -795,6 +821,10 @@ class HomePage(QWidget):
             self.container_layout.addWidget(empty_label)
 
         self.container_layout.addStretch()
+
+    def update_notify_badge(self, unread_count):
+        self.home_notify_badge.setText(str(unread_count))
+        self.home_notify_badge.setVisible(unread_count > 0)
 
     def filter_posts(self, keyword):
         self.render_posts(keyword)
@@ -3204,13 +3234,19 @@ class MainWindow(QWidget):
             return []
         return notifications.get(self.current_user, [])
 
-    def update_notification_badge(self):
+    def get_unread_notifications_count(self):
         unread_count = 0
         for item in self.get_notifications_for_current_user():
             if not item.get("read", False):
                 unread_count += 1
+        return unread_count
+
+    def update_notification_badge(self):
+        unread_count = self.get_unread_notifications_count()
         self.notify_badge.setText(str(unread_count))
         self.notify_badge.setVisible(unread_count > 0 and not self.notification_panel.isVisible())
+        if hasattr(self, "home") and self.home:
+            self.home.update_notify_badge(unread_count)
 
     def position_notification_panel(self):
         anchor = self.notification_anchor_widget if self.notification_anchor_widget else self.notify_wrapper
@@ -3738,6 +3774,7 @@ class MainWindow(QWidget):
             self.show_groups,
             self.show_inline_message,
             self.toggle_notification_panel,
+            self.get_unread_notifications_count,
         )
         self.content_area.addWidget(self.home)
 
